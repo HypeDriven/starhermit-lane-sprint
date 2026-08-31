@@ -1,0 +1,14 @@
+[
+  { "name": "lane-whoosh-soft", "seconds": 1, "prompt": "A soft, quick airy whoosh of a small vehicle swishing sideways into an adjacent lane, short and clean.", "event": "lane" },
+  { "name": "lane-whoosh-quick", "seconds": 1, "prompt": "A fast, sharp whoosh of air as a racing pod darts sideways across the track, bright attack with a short tail.", "event": "lane" },
+  { "name": "lane-whoosh-deep", "seconds": 1, "prompt": "A low, deep whoosh of a heavy craft sliding one lane over, muffled rumble with a quick fade.", "event": "lane" },
+  { "name": "boost-ignition", "seconds": 2, "prompt": "A punchy rocket-style ignition burst from a boost engine, crackling flare-up followed by a rising roar.", "event": "boost" },
+  { "name": "boost-surge", "seconds": 2, "prompt": "A powerful turbine surge as a speed boost kicks in, accelerating jet-like roar building from low to high pitch.", "event": "boost" },
+  { "name": "boost-roar", "seconds": 3, "prompt": "A sustained aggressive engine roar of a racing vehicle at full boost, loud throttle growl with wind rushing past.", "event": "boost" },
+  { "name": "crash-impact", "seconds": 2, "prompt": "A heavy metallic crash impact of a vehicle slamming into an obstacle, loud clang with crunching debris.", "event": "crash" },
+  { "name": "crash-scrape", "seconds": 2, "prompt": "A harsh grinding scrape of metal bodywork dragging along a barrier during a collision, screeching and rough.", "event": "crash" },
+  { "name": "crash-thud", "seconds": 1, "prompt": "A dull heavy thud of a vehicle body hitting the ground after a crash, short and weighty.", "event": "crash" },
+  { "name": "finish-fanfare", "seconds": 3, "prompt": "A short triumphant brass fanfare with a bright horn flourish as the racer crosses the finish line.", "event": "finish" },
+  { "name": "finish-chime", "seconds": 2, "prompt": "A bright sequence of rising bell chimes celebrating a race finish, clear and sparkling.", "event": "finish" },
+  { "name": "finish-applause", "seconds": 3, "prompt": "A small crowd applauding and cheering at a finish line, warm claps and excited shouts.", "event": "finish" }
+]

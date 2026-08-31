@@ -1,0 +1,3 @@
+name=Lane Sprint
+launch=index.html
+server=server.js
