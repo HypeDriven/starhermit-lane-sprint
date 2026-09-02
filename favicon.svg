@@ -1,4 +1,8 @@
-<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='hsl(329 60% 55%)'/><stop offset='1' stop-color='hsl(67 60% 40%)'/></linearGradient></defs>
-<rect width='64' height='64' rx='14' fill='url(#g)'/>
-<text x='32' y='44' font-size='34' text-anchor='middle' fill='#ffffff' font-family='Verdana,sans-serif' font-weight='bold'>L</text>
+<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'>
+  <rect width='64' height='64' rx='13' fill='#0b1a2b'/>
+  <rect x='12' y='6' width='40' height='52' rx='4' fill='#3a3f4b'/>
+  <path d='M32 9v46' stroke='#e8edf2' stroke-width='3' stroke-dasharray='7 6' fill='none'/>
+  <rect x='37' y='11' width='11' height='17' rx='3' fill='#dd5533'/>
+  <rect x='16' y='34' width='11' height='19' rx='3' fill='#ffcc33'/>
+  <rect x='18' y='27' width='7' height='5' rx='2' fill='#33ccff'/>
 </svg>
