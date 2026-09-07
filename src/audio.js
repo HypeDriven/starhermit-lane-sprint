@@ -5,7 +5,21 @@
 let ctx = null;
 let fxBus = null;
 let unlocked = false;
+let enabled = true;
 const listeners = new Set();
+
+/** Effects bus toggle. Listeners still fire so visual cues stay in sync. */
+export function setEnabled(on) {
+	enabled = !!on;
+	if (fxBus) { try { fxBus.gain.value = enabled ? 1 : 0; } catch (_) {} }
+}
+export function isEnabled() { return enabled; }
+
+/** Suspend/resume with document visibility so a backgrounded tab is silent. */
+export function setFocused(focused) {
+	if (!ctx) return;
+	try { if (focused) { if (unlocked) ctx.resume().catch(() => {}); } else ctx.suspend().catch(() => {}); } catch (_) {}
+}
 
 // Runtime event map: every basename in sfx/manifest.json is listed here.
 const SFX_BY_EVENT = {
@@ -27,7 +41,7 @@ function ensureCtx() {
 function bus() {
 	const c = ensureCtx(); if (!c) return null;
 	if (!fxBus) {
-		try { fxBus = c.createGain(); fxBus.connect(c.destination); } catch (_) { fxBus = null; }
+		try { fxBus = c.createGain(); fxBus.gain.value = enabled ? 1 : 0; fxBus.connect(c.destination); } catch (_) { fxBus = null; }
 	}
 	return fxBus;
 }
@@ -87,7 +101,7 @@ function blip(freq, dur, type, gainVal) {
 }
 
 export function playEvent(name) {
-	if (!tryPlaySample(name)) {
+	if (enabled && !tryPlaySample(name)) {
 		switch (name) {
 			case 'lane': blip(440, 0.12, 'triangle', 0.3); break;
 			case 'boost': blip(880, 0.25, 'sawtooth', 0.35); break;

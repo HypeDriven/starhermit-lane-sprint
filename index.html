@@ -1,26 +1,45 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#0b1a2b" />
 <title>Lane Sprint</title>
-<style>
-  html,body { margin:0; padding:0; height:100%; background:#0b1a2b; color:#fff; font-family:sans-serif; }
-  #game-canvas { display:block; width:100vw; height:100vh; }
-</style>
-<script type="importmap">{"imports":{"three":"./vendor/three.module.min.js?v=production-qa-1"}}</script>
-<script type="module" src="/src/index.js?v=production-qa-1"></script>
+<link rel="icon" href="./favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="./css/style.css?v=2">
+<script type="importmap">{"imports":{"three":"./vendor/three.module.min.js?v=2"}}</script>
+<script type="module" src="./src/index.js?v=2"></script>
 </head>
 <body>
-<canvas id="game-canvas"></canvas>
-<div id="hud-score">0</div>
-<div id="hud-progress"></div>
-<div id="overlay"></div>
-<div id="title-screen"></div>
-<div id="results-screen"></div>
-<div id="help-screen"></div>
-<div id="settings-screen"></div>
-<button id="btn-pause">Pause</button>
+<canvas id="game-canvas" tabindex="0" aria-label="Lane Sprint road view"></canvas>
+
+<header id="hud" aria-label="Status">
+  <div class="hud-row">
+    <p class="hud-item"><span class="hud-label">Stage</span><span id="hud-stage">—</span></p>
+    <p class="hud-item"><span class="hud-label">Score</span><span id="hud-score">0</span></p>
+    <p class="hud-item"><span class="hud-label">Speed</span><span id="hud-speed">0 km/h</span></p>
+    <p class="hud-item"><span id="hud-boost" data-state="ready">—</span></p>
+    <button id="btn-pause" type="button" data-action="toggle-pause">Pause</button>
+  </div>
+  <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+    <span id="hud-progress-label" class="sr-only">Progress</span>
+    <span id="hud-progress-bar"></span>
+  </div>
+  <ol id="hud-lanes" aria-label="Lanes"></ol>
+</header>
+
+<p id="banner" hidden></p>
+
+<div id="overlay" hidden>
+  <section id="title-screen" class="screen" aria-label="Title"></section>
+  <section id="results-screen" class="screen" aria-label="Results" hidden></section>
+  <section id="help-screen" class="screen" aria-label="How to play" hidden></section>
+  <section id="settings-screen" class="screen" aria-label="Settings" hidden></section>
+  <section id="pause-screen" class="screen" aria-label="Paused" hidden></section>
+</div>
+
+<nav id="touch-controls" aria-label="Driving controls" hidden></nav>
+
+<p id="live-region" class="sr-only" role="status" aria-live="polite"></p>
 </body>
 </html>

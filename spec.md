@@ -1,11 +1,30 @@
 # Lane Sprint — Product and Game Specification
 
-**Document status:** design specification only; no implementation is included.  
-**Game index:** 70  
-**Genre:** Arcade race  
-**Players:** 1 player; optional asynchronous score comparison  
-**Targets:** desktop browsers, mobile browsers, landscape and portrait where practical  
+**Document status:** specification plus a shipped first implementation; see §0 for what is built today.
+**Game index:** 70
+**Genre:** Arcade race
+**Players:** 1 player; optional asynchronous score comparison
+**Targets:** desktop browsers, mobile browsers, landscape and portrait where practical
 **Rendering direction:** Three.js-first presentation with a fully usable semantic HTML interface layer
+
+## 0. Implementation status
+
+The playable build covers the core loop end to end; the rest of this document remains the target design.
+
+**Shipped**
+
+- Three-lane racing on a fixed 60 Hz deterministic simulation: lane changes, a manual boost with cooldown, collectable boost pads, clean-pass counting, checkpoints and a finish line.
+- 40 authored stages plus a Daily challenge seeded from the UTC date. Stages are data (seed, length, row spacing, traffic speeds, par time, theme) and are proved completable by an offline solver that runs in the test suite.
+- State model `boot → title → play ↔ paused → results`, with restart, next stage, quit, and an automatic pause when the tab is hidden.
+- Score breakdown (distance, clean passes, boost pads, time bonus, finish bonus) with per-stage and per-day best scores persisted locally.
+- Semantic HTML shell over the canvas: HUD, a three-cell lane mirror marking the player and hazard lanes, polite live-region announcements, focus management, 44 px touch targets and a bottom thumb tray.
+- Settings: language, reduced motion, high contrast and sound, persisted across sessions.
+- Localization for the nine required locales with runtime negotiation from browser languages.
+- Static server with `GET /api/v1/time` for round-trip-adjusted clock sync and a validated `/ws` endpoint; launch tokens are kept in memory only.
+
+**Not yet built**
+
+Learn/Challenge/Score-chase modes, hosted accounts and cloud saves, leaderboards and friends comparison, gamepad input, adaptive music stems, quality tiers, and WebGL context-loss resource rebuilding (loss is detected and rendering halts safely, but GPU resources are not yet recreated).
 
 ## 1. Product vision
 
