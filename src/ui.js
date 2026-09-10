@@ -76,13 +76,19 @@ export function renderStatic(state) {
 		els.title.innerHTML = '';
 		const h = document.createElement('h1'); h.textContent = i18n.t('title');
 		const p = document.createElement('p'); p.className = 'tagline'; p.textContent = i18n.t('tagline');
+		const art = document.createElement('img');
+		art.className = 'key-art';
+		art.src = './assets/title-key-art.webp';
+		art.alt = '';               // decorative; the heading carries the meaning
+		art.decoding = 'async';
+		art.addEventListener('error', () => art.remove(), { once: true });
 		const nav = document.createElement('div'); nav.className = 'menu';
 		nav.appendChild(button(i18n.t('play', { n: s.nextStage || 1 }), 'play', 'btn btn-primary'));
 		nav.appendChild(button(i18n.t('daily'), 'daily'));
 		nav.appendChild(button(i18n.t('practice'), 'practice'));
 		nav.appendChild(button(i18n.t('help'), 'open-help'));
 		nav.appendChild(button(i18n.t('settings'), 'open-settings'));
-		els.title.append(h, p, nav);
+		els.title.append(h, p, art, nav);
 	}
 
 	if (els.help) {
@@ -243,6 +249,16 @@ export function showResults(view) {
 	const h = document.createElement('h2');
 	h.textContent = view.finished ? i18n.t('finished') : i18n.t('crashed');
 	els.results.appendChild(h);
+
+	if (view.finished) {
+		const art = document.createElement('img');
+		art.className = 'key-art key-art-results';
+		art.src = './assets/results-finish.webp';
+		art.alt = '';
+		art.decoding = 'async';
+		art.addEventListener('error', () => art.remove(), { once: true });
+		els.results.appendChild(art);
+	}
 
 	const table = document.createElement('table');
 	table.className = 'breakdown';

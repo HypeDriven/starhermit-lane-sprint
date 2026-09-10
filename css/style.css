@@ -249,3 +249,19 @@ body.high-contrast button, body.high-contrast .btn { border-color: #fff; backgro
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
 }
+
+/* --- Key art: decorative illustrations on the title and results screens --- */
+.key-art {
+  display: block;
+  width: 100%;
+  max-width: 460px;
+  height: auto;
+  margin: 0 0 16px;
+  border-radius: var(--radius);
+  border: 1px solid rgba(47, 214, 200, 0.35);
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+.key-art-results { aspect-ratio: 1024 / 346; }
+body.high-contrast .key-art { display: none; }
+@media (max-height: 620px) { .key-art { display: none; } }

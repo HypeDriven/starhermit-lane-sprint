@@ -200,8 +200,12 @@ function applySettings() {
 	ui.refreshSettings(settingsView());
 }
 
+// Menu-level actions get a UI click; gameplay actions have their own cues.
+const GAMEPLAY_ACTIONS = new Set(['lane_left', 'lane_right', 'boost']);
+
 function handleAction(action, value) {
 	audio.resumeAudio();
+	if (!GAMEPLAY_ACTIONS.has(action)) audio.playEvent('ui');
 	switch (action) {
 		case 'play': startStage(getStage(Math.min(getStageCount(), settings.highestStage)), false); return;
 		case 'practice': startStage(getStage(1), false); return;

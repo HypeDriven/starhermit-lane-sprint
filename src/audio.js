@@ -27,6 +27,9 @@ const SFX_BY_EVENT = {
 	boost: ['boost-ignition', 'boost-surge', 'boost-roar'],
 	crash: ['crash-impact', 'crash-scrape', 'crash-thud'],
 	finish: ['finish-fanfare', 'finish-chime', 'finish-applause'],
+	pad: ['pad-chime', 'pad-charge'],
+	checkpoint: ['checkpoint-blip', 'checkpoint-sweep'],
+	ui: ['ui-select', 'ui-back'],
 };
 const sampleCache = new Map(); // name -> { state: 'loading'|'ready'|'error', buffer }
 const eventCursor = new Map(); // event -> round-robin index
@@ -107,6 +110,9 @@ export function playEvent(name) {
 			case 'boost': blip(880, 0.25, 'sawtooth', 0.35); break;
 			case 'crash': blip(160, 0.4, 'square', 0.4); break;
 			case 'finish': blip(987, 0.5, 'triangle', 0.4); break;
+			case 'pad': blip(660, 0.18, 'triangle', 0.32); break;
+			case 'checkpoint': blip(523, 0.1, 'sine', 0.22); break;
+			case 'ui': blip(330, 0.06, 'sine', 0.18); break;
 			default: break;
 		}
 	}

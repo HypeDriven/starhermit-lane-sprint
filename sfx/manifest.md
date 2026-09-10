@@ -2,6 +2,8 @@
 
 Generated with MOSS-SoundEffect v2.0, 48 kHz mono Opus (96 kbps VBR, loudness-normalized; 100 inference steps).
 
+See `manifest.txt` for the canonical file → event → usage-context mapping.
+
 | file | event | prompt |
 |---|---|---|
 | lane-whoosh-soft.opus | lane | A soft, quick airy whoosh of a small vehicle swishing sideways into an adjacent lane, short and clean. |
@@ -16,3 +18,9 @@ Generated with MOSS-SoundEffect v2.0, 48 kHz mono Opus (96 kbps VBR, loudness-no
 | finish-fanfare.opus | finish | A short triumphant brass fanfare with a bright horn flourish as the racer crosses the finish line. |
 | finish-chime.opus | finish | A bright sequence of rising bell chimes celebrating a race finish, clear and sparkling. |
 | finish-applause.opus | finish | A small crowd applauding and cheering at a finish line, warm claps and excited shouts. |
+| pad-chime.opus | pad | A bright crystalline pickup chime with a quick upward glissando, like collecting an energy pad, clean and sparkling. |
+| pad-charge.opus | pad | A short electric charge-up zap as a vehicle drives over a glowing power strip, fizzing energy with a bright pop. |
+| checkpoint-blip.opus | checkpoint | A crisp two-note electronic blip confirming a checkpoint has been passed, clean synthetic tone, short. |
+| checkpoint-sweep.opus | checkpoint | A quick synthetic filter sweep rising then settling, a marker tone passing a track gate, short and airy. |
+| ui-select.opus | ui | A soft muted click with a subtle low tonal body, a menu button being selected, dry and understated. |
+| ui-back.opus | ui | A soft descending two-tone click for backing out of a menu, muted and short. |

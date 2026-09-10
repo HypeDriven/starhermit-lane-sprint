@@ -183,13 +183,14 @@ export function step(state) {
 			state.padsCollected += 1;
 			state.boostActive = true;
 			state.boostTimer = Math.max(state.boostTimer, BOOST_DURATION);
-			state.events.push('boost');
+			state.events.push('pad');
 		}
 	}
 
 	const nextCheckpoint = Math.floor((state.position / state.stageLength) * state.checkpointCount);
 	if (nextCheckpoint > state.checkpointIndex && nextCheckpoint <= state.checkpointCount) {
 		state.checkpointIndex = nextCheckpoint;
+		if (state.position < state.stageLength) state.events.push('checkpoint');
 	}
 
 	if (state.position >= state.stageLength) {
