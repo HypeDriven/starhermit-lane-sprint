@@ -6,7 +6,9 @@ import * as THREE from 'three';
 import { LANE_COUNT, LANE_WIDTH, CAR_LENGTH } from './rules.js';
 import { getTheme } from './content.js';
 
-const LANES_X = [-LANE_WIDTH, 0, LANE_WIDTH];
+// The chase camera looks toward +z, so screen-left is world +x: lane 0 (the
+// left lane in the HUD) sits at +x.
+const LANES_X = [LANE_WIDTH, 0, -LANE_WIDTH];
 const ROAD_WIDTH = LANE_WIDTH * (LANE_COUNT + 1);
 const SEGMENT_LENGTH = 20;      // road/marking repeat length in metres
 const VIEW_AHEAD = 170;         // metres of track kept resident
