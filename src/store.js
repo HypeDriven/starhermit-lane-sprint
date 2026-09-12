@@ -1,9 +1,14 @@
-// Lane Sprint — local persistence: settings and progression, versioned and validated.
+// Lane Sprint — persistence: settings and progression, versioned and validated.
+// localStorage is the offline cache; when a launch token is present the same
+// doc is mirrored to the platform cloud slot (debounced, remote wins on boot).
 // Launch/access tokens are never written here (see platform.js).
 'use strict';
 
+import * as platform from './platform.js';
+
 const KEY = 'lane-sprint/v1';
 const SAVE_VERSION = 1;
+const CLOUD_DEBOUNCE_MS = 2000;
 
 const DEFAULTS = {
 	version: SAVE_VERSION,
@@ -17,6 +22,10 @@ const DEFAULTS = {
 };
 
 let cache = null;
+let syncState = 'offline';   // 'offline' | 'synced' | 'saving' | 'error'
+let pushTimer = 0;
+let pushInFlight = null;
+const syncListeners = new Set();
 
 function storage() {
 	try {
@@ -47,6 +56,20 @@ function sanitize(raw) {
 	return out;
 }
 
+/** Current cloud-mirror status, for the HUD badge. */
+export function getSyncState() { return syncState; }
+
+export function onSyncChange(fn) {
+	syncListeners.add(fn);
+	return () => syncListeners.delete(fn);
+}
+
+function setSyncState(state) {
+	if (state === syncState) return;
+	syncState = state;
+	for (const fn of syncListeners) { try { fn(state); } catch (_) {} }
+}
+
 export function load() {
 	if (cache) return cache;
 	const s = storage();
@@ -56,13 +79,74 @@ export function load() {
 	return cache;
 }
 
-export function save(patch) {
-	const data = Object.assign(load(), patch || {});
-	data.version = SAVE_VERSION;
+function writeLocal(data) {
 	cache = data;
 	const s = storage();
 	if (s) { try { s.setItem(KEY, JSON.stringify(data)); } catch (_) {} }
+}
+
+export function save(patch) {
+	const data = Object.assign(load(), patch || {});
+	data.version = SAVE_VERSION;
+	writeLocal(data);
+	scheduleCloudPush();
 	return data;
+}
+
+/**
+ * Boots from the cloud mirror when hosted: a remote save wins over the local
+ * cache; a 404 (or any failure) keeps the local document. Returns true when
+ * the local cache was replaced by the remote document.
+ */
+export async function syncFromCloud() {
+	if (!platform.isHosted()) return false;
+	try {
+		const remote = await platform.fetchCloudSave();
+		if (!remote || typeof remote !== 'object') { setSyncState('synced'); return false; }
+		const merged = sanitize(remote);
+		writeLocal(merged);
+		setSyncState('synced');
+		return true;
+	} catch (_) {
+		setSyncState('error');
+		return false;
+	}
+}
+
+function scheduleCloudPush() {
+	if (!platform.isHosted()) { setSyncState('offline'); return; }
+	setSyncState('saving');
+	clearTimeout(pushTimer);
+	pushTimer = setTimeout(() => { flushCloudPush().catch(() => {}); }, CLOUD_DEBOUNCE_MS);
+}
+
+/** Pushes the current document now; used by the debounce timer and pagehide. */
+export async function flushCloudPush() {
+	if (!platform.isHosted()) return false;
+	clearTimeout(pushTimer);
+	pushTimer = 0;
+	if (pushInFlight) return pushInFlight;
+	pushInFlight = (async () => {
+		try {
+			await platform.putCloudSave(load());
+			setSyncState('synced');
+			return true;
+		} catch (_) {
+			setSyncState('error');
+			return false;
+		} finally {
+			pushInFlight = null;
+		}
+	})();
+	return pushInFlight;
+}
+
+// Flush pending saves when the page is hidden or torn down.
+if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+	window.addEventListener('pagehide', () => { flushCloudPush().catch(() => {}); });
+	document.addEventListener('visibilitychange', () => {
+		if (document.hidden) flushCloudPush().catch(() => {});
+	});
 }
 
 /** Records a score; returns true when it beat the stored best. */

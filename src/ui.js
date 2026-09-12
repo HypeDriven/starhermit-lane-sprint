@@ -8,6 +8,10 @@ import * as i18n from './i18n.js';
 let els = {};
 let onAction = () => {};
 let lastAnnouncement = '';
+let playerName = '';
+let syncState = 'offline';
+
+const SYNC_LABEL_KEYS = { synced: 'syncSynced', saving: 'syncSaving', offline: 'syncOffline', error: 'syncError' };
 
 const SCREENS = ['title', 'help', 'settings', 'paused', 'results'];
 
@@ -34,6 +38,9 @@ export function init(handler, state) {
 		hudProgressLabel: $('hud-progress-label'),
 		lanes: $('hud-lanes'),
 		live: $('live-region'),
+		hudPlayer: $('hud-player'),
+		hudPlayerLabel: $('hud-player-label'),
+		hudSync: $('hud-sync'),
 		overlay: $('overlay'),
 		title: $('title-screen'),
 		results: $('results-screen'),
@@ -67,6 +74,56 @@ function buildLaneMirror() {
 	}
 }
 
+function syncLabel() { return i18n.t(SYNC_LABEL_KEYS[syncState] || 'syncOffline'); }
+
+function makeSyncBadge() {
+	const badge = document.createElement('span');
+	badge.className = 'sync-badge';
+	badge.dataset.state = syncState;
+	badge.textContent = syncLabel();
+	return badge;
+}
+
+/** Title-screen identity/save line, rebuilt by renderStatic on locale change. */
+function renderPlayerLine(parent) {
+	if (!playerName && syncState === 'offline') return;
+	const line = document.createElement('p');
+	line.className = 'player-line';
+	if (playerName) {
+		line.textContent = i18n.t('playingAs', { name: playerName });
+		line.appendChild(document.createTextNode(' '));
+	}
+	line.appendChild(makeSyncBadge());
+	(parent || els.title).appendChild(line);
+}
+
+function refreshPlayerHud() {
+	if (els.hudPlayerLabel) {
+		els.hudPlayerLabel.textContent = i18n.t('player');
+		els.hudPlayerLabel.hidden = !playerName;
+	}
+	if (els.hudPlayer) {
+		els.hudPlayer.textContent = playerName || '—';
+		els.hudPlayer.hidden = !playerName;
+	}
+	if (els.hudSync) {
+		els.hudSync.dataset.state = syncState;
+		els.hudSync.textContent = syncLabel();
+	}
+}
+
+/** Account nickname from the platform profile; shown in the HUD + title line. */
+export function setPlayerName(name) {
+	playerName = String(name || '').trim();
+	refreshPlayerHud();
+}
+
+/** Cloud-mirror status: 'synced' | 'saving' | 'offline' | 'error'. */
+export function setSyncStatus(state) {
+	syncState = SYNC_LABEL_KEYS[state] ? state : 'offline';
+	refreshPlayerHud();
+}
+
 /** Re-render every localized label. Called on boot and on locale change. */
 export function renderStatic(state) {
 	const s = state || {};
@@ -76,6 +133,8 @@ export function renderStatic(state) {
 		els.title.innerHTML = '';
 		const h = document.createElement('h1'); h.textContent = i18n.t('title');
 		const p = document.createElement('p'); p.className = 'tagline'; p.textContent = i18n.t('tagline');
+		els.title.append(h, p);
+		renderPlayerLine(els.title);
 		const art = document.createElement('img');
 		art.className = 'key-art';
 		art.src = './assets/title-key-art.webp';
@@ -129,6 +188,7 @@ export function renderStatic(state) {
 		els.pauseBtn.setAttribute('aria-label', i18n.t('pause'));
 	}
 	if (els.hudProgressLabel) els.hudProgressLabel.textContent = i18n.t('progress');
+	refreshPlayerHud();
 }
 
 function renderSettings(s) {

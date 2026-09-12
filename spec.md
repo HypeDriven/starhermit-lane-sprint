@@ -25,7 +25,7 @@
 | `src/ui.js` | DOM rendering of every screen, HUD write-out, lane mirror, focus, live announcements. |
 | `src/audio.js` | WebAudio buses, sample rotation per event, synth fallback, focus suspension. |
 | `src/store.js` | Versioned, sanitized `localStorage` save (settings, best scores, highest stage). |
-| `src/platform.js` | Launch-token capture (memory only), round-trip-corrected clock sync. |
+| `src/platform.js` | Launch-token capture + 45-min refresh (memory only), profile fetch, cloud-save slot, round-trip-corrected clock sync. |
 | `src/i18n.js` | Nine locale tables, negotiation, `{param}` interpolation, `missingKeys()` test hook. |
 | `server.js` | Static file server, `GET /api/v1/time`, validated `/ws` echo, traversal rejection. |
 | `assets/` | Title and results key art (WebP). |
@@ -208,17 +208,17 @@ Interpolation is `{name}` token replacement (`t(key, params)`); a unit test asse
 
 `starhermit.txt` declares `name`, `launch=index.html`, `owner` and `server=server.js`; `coverart.png` is the platform card.
 
-**Used:** launch-context handshake — `platform.readLaunchContext()` reads `launch_token`/`token` from the query string, keeps it in memory only (never in `localStorage`), and marks the session hosted; every platform request then carries `Authorization: Bearer …`. Authoritative time — `GET /api/v1/time` with round-trip correction (`syncTime`) so the Daily stage matches the platform's UTC day rather than the device clock. A validated `/ws` endpoint is served and hardened (16 KB max payload, JSON shape check, `ping`/`pong`) as the transport for future hosted features.
+**Used:** launch-context handshake — `platform.readLaunchContext()` reads the `#game_token=<jwt>` fragment once (query params remain a local-dev fallback), strips it via `history.replaceState`, decodes `sub`/`game_scope` (never hard-coded), and marks the session hosted; every platform request then carries `Authorization: Bearer …`. Token refresh — `POST /api/v1/games/{slug}/launch-token` every 45 min (60 s retry on failure), swapping in the re-minted token. Account identity — `GET /api/v1/users/{sub}/profile`, showing the nickname (never a username; `"Player "+id8` fallback) in the HUD and title line. Cloud saves — the `lane-sprint/v1` document is mirrored to `GET`/`PUT /api/v1/me/cloud-saves/{slug}` as a stored zip+base64 (remote wins on boot when present; localStorage stays the offline cache; saves debounce 2 s and flush on `pagehide`), with a sync badge in the HUD. Authoritative time — `GET /api/v1/time` with round-trip correction (`syncTime`) so the Daily stage matches the platform's UTC day rather than the device clock. A validated `/ws` endpoint is served and hardened (16 KB max payload, JSON shape check, `ping`/`pong`) as the transport for future hosted features.
 
-**Not used:** hosted identity and cloud saves, leaderboards, achievements, friend presence, and server-side session records. Scores and progress are local. All of these follow the conventions at https://wiki.starhermit.com/ when adopted; nothing in the game requires a host to be playable.
+**Not used:** leaderboards, achievements, friend presence, and server-side session records. Best scores remain personal records, mirrored through the cloud save. Nothing in the game requires a host to be playable.
 
 ## 13. Technical architecture
 
-**Dependency direction:** `rules` ← `content` ← `session` ← `index` → {`render`, `ui`, `audio`, `store`, `platform`, `i18n`}. `rules.js` imports nothing and touches no DOM, so it runs unchanged in Node for tests, validators and the solver. `render.js` reads state, never writes it.
+**Dependency direction:** `rules` ← `content` ← `session` ← `index` → {`render`, `ui`, `audio`, `store`, `platform`, `i18n`}; `store` → `platform` for the cloud mirror. `rules.js` imports nothing and touches no DOM, so it runs unchanged in Node for tests, validators and the solver. `render.js` reads state, never writes it.
 
 **Determinism and replay.** Fixed 1/60 s step, integer-friendly scoring, seeded layouts, per-tick command log with an FNV state hash every 60 ticks. `verifyReplay` reconstructs a run from the seed and command list — it is the game's own anti-cheat and regression detector.
 
-**Persistence.** One `localStorage` key `lane-sprint/v1`, written through `sanitize()`, which clamps `highestStage` to 1–999 and rejects non-finite or negative scores, so a corrupted or hand-edited save degrades to defaults rather than breaking boot. Storage is probed in a `try/catch`; private-mode failures leave the game fully playable and stateless.
+**Persistence.** One `localStorage` key `lane-sprint/v1`, written through `sanitize()`, which clamps `highestStage` to 1–999 and rejects non-finite or negative scores, so a corrupted or hand-edited save degrades to defaults rather than breaking boot. Storage is probed in a `try/catch`; private-mode failures leave the game fully playable and stateless. Hosted sessions mirror the same document to the platform cloud slot (remote wins on boot); localStorage remains the offline cache.
 
 **Performance budget.** No per-frame allocation in `step()` or `render()`. Meshes are pooled and clipped to a 170 m ahead / 40 m behind window; geometry and materials are shared and tracked in a `disposables` list freed by `dispose()`. Pixel ratio capped at 2. Target 60 fps on mid-range mobile; catch-up capped at 12 steps per frame.
 
@@ -257,7 +257,7 @@ The player car, traffic cars, boost pads, road, markings, sky dome and speed lin
 
 ## 16. Known limitations
 
-- **No cloud anything.** Best scores, highest stage and settings are device-local; clearing site data resets progress. There are no leaderboards, friend comparisons or hosted daily rankings, so the Daily challenge is a personal-best chase.
+- **Cloud mirror when hosted.** Best scores, highest stage and settings live in the `lane-sprint/v1` localStorage key, which is also mirrored to the platform cloud slot when a launch token is present (remote wins on boot, 2 s debounce, `pagehide` flush). Without a host — or after clearing site data with no cloud doc — progress is device-local. There are no leaderboards, friend comparisons or hosted daily rankings, so the Daily challenge is a personal-best chase.
 - **WebGL context loss is survived but not recovered.** Loss is detected and rendering stops cleanly; GPU resources are not rebuilt, so the player must reload.
 - **No gamepad support.** Keyboard, pointer and touch only.
 - **No music or ambience.** Audio is confirmatory only; long sessions are silent between cues.

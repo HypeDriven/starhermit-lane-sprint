@@ -302,6 +302,22 @@ export function boot() {
 	if (started) return; started = true;
 
 	platform.readLaunchContext();
+	if (platform.isHosted()) {
+		platform.startTokenRefresh();
+		platform.fetchProfile().then((profile) => {
+			if (profile) ui.setPlayerName(profile.nickname);
+		}).catch(() => {});
+		store.syncFromCloud().then((replaced) => {
+			if (!replaced) return;
+			settings = store.load();
+			if (!settings.locale) settings.locale = i18n.getLocale();
+			if (prefersReducedMotion() && !settings.reducedMotion) settings.reducedMotion = true;
+			applySettings();
+			ui.renderStatic(settingsView());
+		}).catch(() => {});
+	}
+	ui.setSyncStatus(store.getSyncState());
+	store.onSyncChange(ui.setSyncStatus);
 	settings = store.load();
 	i18n.setLocale(i18n.negotiateLocale(settings.locale, navigator.languages || [navigator.language]));
 	if (!settings.locale) settings.locale = i18n.getLocale();

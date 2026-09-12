@@ -67,6 +67,11 @@ html, body {
 .hud-label { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
 #hud-score { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
 #hud-stage, #hud-speed { font-size: 16px; font-variant-numeric: tabular-nums; }
+#hud-player { font-size: 14px; font-weight: 600; }
+.sync-badge { font-size: 11px; color: var(--muted); }
+.sync-badge[data-state="synced"] { color: var(--accent); }
+.sync-badge[data-state="error"] { color: var(--danger); }
+.player-line { margin: 8px 0 0; font-size: 13px; color: var(--muted); }
 
 #hud-boost {
   margin: 0;
