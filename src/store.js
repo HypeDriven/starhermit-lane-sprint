@@ -5,6 +5,7 @@
 'use strict';
 
 import * as platform from './platform.js';
+import { sanitize as sanitizeGraphics } from './gfx.js';
 
 const KEY = 'lane-sprint/v1';
 const SAVE_VERSION = 1;
@@ -16,6 +17,7 @@ const DEFAULTS = {
 	reducedMotion: false,
 	highContrast: false,
 	sound: true,
+	graphics: { preset: 'auto', render_scale: 1, adaptive: true, show_fps: false },
 	highestStage: 1,
 	bestScores: {},   // stageId -> integer score
 	dailyBest: {},    // dayKey -> integer score
@@ -42,6 +44,7 @@ function sanitize(raw) {
 	out.reducedMotion = !!raw.reducedMotion;
 	out.highContrast = !!raw.highContrast;
 	out.sound = raw.sound !== false;
+	out.graphics = sanitizeGraphics(raw.graphics);
 	const stage = Number(raw.highestStage);
 	out.highestStage = Number.isFinite(stage) ? Math.max(1, Math.min(999, Math.floor(stage))) : 1;
 	for (const map of ['bestScores', 'dailyBest']) {

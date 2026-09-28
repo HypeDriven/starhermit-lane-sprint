@@ -10,6 +10,7 @@ import * as audio from './audio.js';
 import * as store from './store.js';
 import * as platform from './platform.js';
 import * as i18n from './i18n.js';
+import * as gfx from './gfx.js';
 import { getStage, getDailyStage, getStageCount } from './content.js';
 
 // boot → title → preparing → active ↔ paused → results
@@ -32,7 +33,22 @@ function settingsView() {
 		reducedMotion: settings.reducedMotion,
 		highContrast: settings.highContrast,
 		sound: settings.sound,
+		graphics: { saved: settings.graphics, info: render.graphicsInfo(i18n.t) },
 	};
+}
+
+function isTouchDevice() {
+	try {
+		return window.matchMedia('(pointer: coarse)').matches && !window.matchMedia('(any-pointer: fine)').matches;
+	} catch (_) { return false; }
+}
+
+/** Persist and apply graphics settings live, then refresh the panel's summary. */
+function applyGraphics(next) {
+	settings.graphics = next;
+	store.save({ graphics: next });
+	render.setGraphics(next);
+	ui.refreshSettings(settingsView());
 }
 
 function prefersReducedMotion() {
@@ -65,6 +81,7 @@ function startStage(stage, daily) {
 	isDaily = !!daily;
 	current = session.startSession(stage);
 	render.setTheme(stage.theme);
+	render.setAttract(false);
 	ui.setHudVisible(true);
 	phase = PHASE.PLAY;
 	ui.showScreen('play');
@@ -180,6 +197,7 @@ function goTitle() {
 	isDaily = false;
 	current = session.startSession(attractStage);
 	render.setTheme(attractStage.theme);
+	render.setAttract(true);
 	ui.setHudVisible(false);
 	ui.renderStatic(settingsView());
 	ui.showScreen('title');
@@ -211,7 +229,18 @@ function handleAction(action, value) {
 		case 'practice': startStage(getStage(1), false); return;
 		case 'daily': startStage(getDailyStage(platform.now()), true); return;
 		case 'open-help': openOverlay('help'); return;
-		case 'open-settings': openOverlay('settings'); return;
+		case 'open-settings': ui.refreshSettings(settingsView()); openOverlay('settings'); return;
+		case 'gfx-preset': applyGraphics(gfx.applyPreset(settings.graphics, value)); return;
+		case 'gfx-scale': applyGraphics(Object.assign({}, settings.graphics, { render_scale: Number(value) / 100 })); return;
+		case 'gfx-set': {
+			const [cat, tier] = String(value).split(':');
+			const next = Object.assign({}, settings.graphics);
+			if (tier === 'preset') delete next[cat]; else next[cat] = tier;
+			applyGraphics(gfx.sanitize(next));
+			return;
+		}
+		case 'toggle-gfx-adaptive': applyGraphics(Object.assign({}, settings.graphics, { adaptive: settings.graphics.adaptive === false })); return;
+		case 'toggle-gfx-fps': applyGraphics(Object.assign({}, settings.graphics, { show_fps: !settings.graphics.show_fps })); return;
 		case 'close-overlay': closeOverlay(); return;
 		case 'resume': setPaused(false); return;
 		case 'toggle-pause': setPaused(phase === PHASE.PLAY); return;
@@ -312,6 +341,7 @@ export function boot() {
 			settings = store.load();
 			if (!settings.locale) settings.locale = i18n.getLocale();
 			if (prefersReducedMotion() && !settings.reducedMotion) settings.reducedMotion = true;
+			render.setGraphics(settings.graphics);
 			applySettings();
 			ui.renderStatic(settingsView());
 		}).catch(() => {});
@@ -331,7 +361,7 @@ export function boot() {
 		showCompatibilityMessage();
 		return;
 	}
-	render.init(canvas, { reducedMotion: settings.reducedMotion, highContrast: settings.highContrast });
+	render.init(canvas, { reducedMotion: settings.reducedMotion, highContrast: settings.highContrast, graphics: settings.graphics, mobile: isTouchDevice() });
 	applySettings();
 	fitCanvas();
 

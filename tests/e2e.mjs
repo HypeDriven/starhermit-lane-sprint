@@ -100,6 +100,60 @@ async function runPass(browser, label, contextOptions, baseUrl) {
 		await page.click('#settings-screen [data-action="close-overlay"]');
 	});
 
+	await step(`${label}: graphics settings switch presets, override, persist and apply live`, async () => {
+		const gfxPreset = () => page.evaluate(() => [document.body.dataset.gfxPreset, document.getElementById('game-canvas').dataset.gfxPreset]);
+		await page.click('[data-action="open-settings"]');
+		await page.waitForSelector('#gfx-section', { state: 'visible' });
+		const autoLabel = await page.textContent('#gfx-preset option[value="auto"]');
+		if (!/Auto \(detected: /.test(autoLabel)) throw new Error(`auto option label: ${autoLabel}`);
+		await page.selectOption('#gfx-preset', 'low');
+		await page.waitForFunction(() => document.body.dataset.gfxPreset === 'low');
+		if ((await gfxPreset()).join() !== 'low,low') throw new Error('low preset not applied to canvas');
+		if (!/no shadows/.test(await page.textContent('#gfx-summary'))) throw new Error('summary did not follow Low');
+		await page.selectOption('#gfx-preset', 'high');
+		await page.waitForFunction(() => document.body.dataset.gfxPreset === 'high');
+		const summary = await page.textContent('#gfx-summary');
+		if (!/2048² shadows/.test(summary) || !/SMAA/.test(summary)) throw new Error(`summary did not follow High: ${summary}`);
+		await page.selectOption('#gfx-bloom', 'off');
+		await page.waitForFunction(() => !/bloom/.test(document.getElementById('gfx-summary').textContent));
+		// Keyboard: the render scale slider steps with the arrow keys.
+		await page.focus('#gfx-scale');
+		await page.keyboard.press('ArrowRight');
+		await page.waitForFunction(() => document.getElementById('gfx-scale-value').textContent === '110%');
+		await page.click('#gfx-show-fps');
+		await page.waitForSelector('#fps-meter', { state: 'visible' });
+		if (await page.getAttribute('#gfx-show-fps', 'aria-pressed') !== 'true') throw new Error('fps toggle not pressed');
+		await shot('settings-graphics');
+		await page.reload({ waitUntil: 'load' });
+		await page.waitForFunction(() => window.__laneSprint && window.__laneSprint.getPhase() === 'title');
+		if ((await gfxPreset()).join() !== 'high,high') throw new Error('preset did not survive reload');
+		await page.click('[data-action="open-settings"]');
+		if (await page.inputValue('#gfx-preset') !== 'high') throw new Error('preset select not restored');
+		if (await page.inputValue('#gfx-bloom') !== 'off') throw new Error('bloom override not restored');
+		if (await page.inputValue('#gfx-scale') !== '110') throw new Error('render scale not restored');
+		// Ultra renders a live run without console noise.
+		await page.selectOption('#gfx-preset', 'ultra');
+		await page.waitForFunction(() => document.body.dataset.gfxPreset === 'ultra');
+		if (await page.inputValue('#gfx-bloom') !== 'preset') throw new Error('choosing a preset did not clear overrides');
+		await page.click('#settings-screen [data-action="close-overlay"]');
+		await page.click('[data-action="practice"]');
+		await page.waitForFunction(() => window.__laneSprint.getState().position > 10, null, { timeout: 20000 });
+		await shot('play-ultra');
+		await page.click('#btn-pause');
+		await page.waitForSelector('#pause-screen', { state: 'visible' });
+		await page.click('#pause-screen [data-action="open-settings"]');
+		await page.waitForSelector('#gfx-section', { state: 'visible' });
+		await page.selectOption('#gfx-preset', 'auto');
+		await page.click('#gfx-show-fps');
+		await page.focus('#gfx-scale');
+		await page.keyboard.press('ArrowLeft');
+		await page.waitForFunction(() => document.getElementById('gfx-scale-value').textContent === '100%');
+		await page.waitForSelector('#fps-meter', { state: 'hidden' });
+		await page.click('#settings-screen [data-action="close-overlay"]');
+		await page.click('#pause-screen [data-action="quit"]');
+		await page.waitForSelector('#title-screen', { state: 'visible' });
+	});
+
 	await step(`${label}: starting practice advances the simulation`, async () => {
 		await page.click('[data-action="practice"]');
 		await page.waitForFunction(() => window.__laneSprint.getPhase() === 'play');

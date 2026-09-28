@@ -191,6 +191,54 @@ await test('interpolation substitutes parameters in each locale', () => {
 	i18n.setLocale('en-US');
 });
 
+
+// --- graphics quality model ---
+const gfx = await import(src('gfx.js'));
+
+await test('gfx: detectPreset maps GPU strings to tiers', () => {
+	assert.equal(gfx.detectPreset('ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero)), SwiftShader driver)'), 'low');
+	assert.equal(gfx.detectPreset('llvmpipe (LLVM 15.0.7, 256 bits)'), 'low');
+	assert.equal(gfx.detectPreset('ANGLE (NVIDIA, NVIDIA GeForce RTX 3070 Direct3D11 vs_5_0 ps_5_0)'), 'high');
+	assert.equal(gfx.detectPreset('Apple M2 Pro'), 'high');
+	assert.equal(gfx.detectPreset('ANGLE (Intel, Intel(R) UHD Graphics 620 Direct3D11)'), 'balanced');
+	assert.equal(gfx.detectPreset('Adreno (TM) 650'), 'balanced');
+	assert.equal(gfx.detectPreset(''), 'balanced');
+	assert.equal(gfx.detectPreset('Apple M1', true), 'balanced', 'touch devices cap Auto at Balanced');
+	assert.equal(gfx.detectPreset('SwiftShader', true), 'low');
+});
+
+await test('gfx: resolve applies preset, overrides and clamps scale', () => {
+	const auto = gfx.resolve({}, 'low');
+	assert.equal(auto.preset, 'low'); assert.equal(auto.auto, true);
+	assert.equal(auto.shadows, 'off'); assert.equal(auto.post, false);
+	const high = gfx.resolve({ preset: 'high' }, 'low');
+	assert.equal(high.preset, 'high'); assert.equal(high.auto, false);
+	assert.equal(high.shadows, gfx.presetTier('high', 'shadows'));
+	assert.equal(high.post, true);
+	const over = gfx.resolve({ preset: 'high', bloom: 'off', shadows: 'bogus', detail: 'plain' }, 'low');
+	assert.equal(over.bloom, 'off'); assert.equal(over.shadows, 'medium'); assert.equal(over.detail, 'plain');
+	assert.equal(gfx.resolve({ preset: 'balanced', render_scale: 9 }).scale, 2);
+	assert.equal(gfx.resolve({ preset: 'balanced', render_scale: 0.1 }).scale, 0.5);
+	assert.equal(gfx.resolve({ preset: 'ultra', render_scale: 1 }).scale, 1.25);
+	assert.equal(gfx.resolve({ adaptive: false }).adaptive, false);
+	assert.equal(gfx.resolve({}).adaptive, true);
+	assert.equal(gfx.resolve({}).showFps, false);
+});
+
+await test('gfx: choosing a preset clears overrides but keeps scale/adaptive/fps', () => {
+	const next = gfx.applyPreset({ preset: 'high', bloom: 'off', ao: 'high', render_scale: 1.5, adaptive: false, show_fps: true }, 'low');
+	assert.deepEqual(next, { preset: 'low', render_scale: 1.5, adaptive: false, show_fps: true });
+	assert.equal(gfx.applyPreset({}, 'nonsense').preset, 'auto');
+});
+
+await test('gfx: sanitize drops unknown keys/values and describe summarises cost', () => {
+	const s = gfx.sanitize({ preset: 'mega', shadows: 'high', ao: 'x', evil: 1, render_scale: '3' });
+	assert.deepEqual(s, { preset: 'auto', render_scale: 2, adaptive: true, show_fps: false, shadows: 'high' });
+	const text = gfx.describe(gfx.resolve({ preset: 'high' }), [1280, 800]);
+	assert.match(text, /2048² shadows/); assert.match(text, /SMAA/); assert.match(text, /1280×800 px/);
+	assert.match(gfx.describe(gfx.resolve({ preset: 'low' })), /no shadows/);
+});
+
 // --- server ---
 const serverMod = await import(join(ROOT, 'server.js'));
 const port = await serverMod.start(0);

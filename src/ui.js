@@ -4,6 +4,7 @@
 
 import { LANE_COUNT } from './rules.js';
 import * as i18n from './i18n.js';
+import { PRESETS, CATEGORIES, presetTier } from './gfx.js';
 
 let els = {};
 let onAction = () => {};
@@ -224,12 +225,118 @@ function renderSettings(s) {
 		els.settings.appendChild(b);
 	}
 
+	if (s.graphics) renderGraphics(els.settings, s.graphics);
+
 	const nav = document.createElement('div'); nav.className = 'menu';
 	nav.appendChild(button(i18n.t('back'), 'close-overlay', 'btn btn-primary'));
 	els.settings.appendChild(nav);
 }
 
-export function refreshSettings(s) { if (els.settings) renderSettings(s); }
+function tierLabel(tier) { return i18n.t('gfxTier_' + tier); }
+
+function gfxRow(parent, id, labelText, control) {
+	const row = document.createElement('div');
+	row.className = 'gfx-row';
+	const label = document.createElement('label');
+	label.setAttribute('for', id);
+	label.textContent = labelText;
+	control.id = id;
+	row.append(label, control);
+	parent.appendChild(row);
+	return row;
+}
+
+function gfxSelect(options, selected, onChange) {
+	const select = document.createElement('select');
+	for (const [value, label] of options) {
+		const opt = document.createElement('option');
+		opt.value = value; opt.textContent = label;
+		if (value === selected) opt.selected = true;
+		select.appendChild(opt);
+	}
+	select.addEventListener('change', () => onChange(select.value));
+	return select;
+}
+
+/** Graphics section: preset, render scale, per-effect overrides, adaptive, FPS, summary. */
+function renderGraphics(parent, g) {
+	const saved = g.saved || {};
+	const info = g.info || {};
+	const resolved = info.resolved || {};
+	const sec = document.createElement('section');
+	sec.className = 'gfx';
+	sec.id = 'gfx-section';
+	sec.setAttribute('aria-labelledby', 'gfx-heading');
+	const h = document.createElement('h3'); h.id = 'gfx-heading'; h.textContent = i18n.t('graphics');
+	sec.appendChild(h);
+
+	const presetOptions = [['auto', i18n.t('gfxAuto', { tier: i18n.t('gfxPreset_' + (info.detected || 'balanced')) })]]
+		.concat(PRESETS.map(p => [p, i18n.t('gfxPreset_' + p)]));
+	gfxRow(sec, 'gfx-preset', i18n.t('gfxQuality'),
+		gfxSelect(presetOptions, PRESETS.includes(saved.preset) ? saved.preset : 'auto', v => onAction('gfx-preset', v)));
+
+	const pct = Math.round((Number(saved.render_scale) || 1) * 100);
+	const scaleWrap = document.createElement('div');
+	scaleWrap.className = 'gfx-scale';
+	const range = document.createElement('input');
+	range.type = 'range'; range.min = '50'; range.max = '200'; range.step = '10'; range.value = String(pct);
+	range.id = 'gfx-scale';
+	const out = document.createElement('output');
+	out.id = 'gfx-scale-value'; out.setAttribute('for', 'gfx-scale'); out.textContent = pct + '%';
+	range.addEventListener('input', () => { out.textContent = range.value + '%'; });
+	range.addEventListener('change', () => onAction('gfx-scale', range.value));
+	scaleWrap.append(range, out);
+	const scaleRow = document.createElement('div');
+	scaleRow.className = 'gfx-row';
+	const scaleLabel = document.createElement('label');
+	scaleLabel.setAttribute('for', 'gfx-scale');
+	scaleLabel.textContent = i18n.t('gfxScale');
+	scaleRow.append(scaleLabel, scaleWrap);
+	sec.appendChild(scaleRow);
+
+	for (const [cat, tiers] of Object.entries(CATEGORIES)) {
+		const fromPreset = i18n.t('gfxFromPreset', { tier: tierLabel(presetTier(resolved.preset || 'balanced', cat)) });
+		const options = [['preset', fromPreset]].concat(tiers.map(t => [t, tierLabel(t)]));
+		const sel = gfxSelect(options, tiers.includes(saved[cat]) ? saved[cat] : 'preset', v => onAction('gfx-set', `${cat}:${v}`));
+		sel.dataset.gfxCat = cat;
+		gfxRow(sec, 'gfx-' + cat, i18n.t('gfxCat_' + cat), sel);
+	}
+
+	const toggles = [
+		['toggle-gfx-adaptive', 'gfx-adaptive', 'gfxAdaptive', saved.adaptive !== false],
+		['toggle-gfx-fps', 'gfx-show-fps', 'gfxShowFps', !!saved.show_fps],
+	];
+	for (const [action, id, key, value] of toggles) {
+		const b = button(`${i18n.t(key)}: ${value ? i18n.t('on') : i18n.t('off')}`, action);
+		b.id = id;
+		b.setAttribute('aria-pressed', String(value));
+		sec.appendChild(b);
+	}
+
+	const summary = document.createElement('p');
+	summary.id = 'gfx-summary';
+	summary.className = 'gfx-summary';
+	summary.textContent = `${info.gpu || ''} · ${info.summary || ''}`;
+	sec.appendChild(summary);
+	if (info.postFailed) {
+		const note = document.createElement('p');
+		note.id = 'gfx-post-note';
+		note.className = 'gfx-note';
+		note.textContent = i18n.t('gfxPostFailed');
+		sec.appendChild(note);
+	}
+	parent.appendChild(sec);
+}
+
+/** Rebuild the settings panel, keeping keyboard focus and scroll position. */
+export function refreshSettings(s) {
+	if (!els.settings) return;
+	const active = document.activeElement && els.settings.contains(document.activeElement) ? document.activeElement.id : '';
+	const scroll = els.overlay ? els.overlay.scrollTop : 0;
+	renderSettings(s);
+	if (els.overlay) els.overlay.scrollTop = scroll;
+	if (active) { const el = document.getElementById(active); if (el) el.focus({ preventScroll: true }); }
+}
 
 /**
  * Shows exactly one overlay screen (or none for 'play'). Overlays own focus so
