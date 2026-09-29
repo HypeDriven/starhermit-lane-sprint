@@ -277,3 +277,7 @@ The player car, traffic cars, boost pads, road, markings, sky dome and speed lin
 - **Score chase** against validated seeds shared through the platform, and hosted daily rankings via the reserved `/ws` channel.
 - **Adaptive audio** — a speed-reactive bed that rises with boost.
 - **Quality tiers** selecting pixel ratio and effect density from measured frame time.
+
+## Browser interference
+
+`browser-guard.js` (loaded from `index.html`) suppresses browser UI that gets in the way of play: the right-click context menu, the iOS long-press callout, copy / cut / paste, and page text selection. Text fields (inputs, textareas, selects, contenteditable) keep normal selection, context menu and clipboard behaviour.
