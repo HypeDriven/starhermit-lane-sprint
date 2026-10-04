@@ -15,7 +15,8 @@
 
 | Path | Responsibility |
 |---|---|
-| `index.html` | Entry point: canvas, HUD, overlay container, touch tray, live region. |
+| `index.html` | Entry point: canvas, HUD, overlay container, touch tray, live region; loads `starhermit-sdk.js` before the module entry. |
+| `starhermit-sdk.js` | Shared StarHermit client (`window.StarHermit`), an unmodified copy of `tools/starhermit-sdk.js`. |
 | `css/style.css` | Palette tokens, HUD, overlays, thumb tray, high-contrast and reduced-motion modes, key art. |
 | `src/index.js` | Bootstrap, phase machine, input map, rAF loop, HUD projection, `window.__laneSprint` test handles. |
 | `src/rules.js` | Pure rules: state, legality, fixed step, collision, scoring, hashing, PRNG. |
@@ -26,13 +27,13 @@
 | `src/ui.js` | DOM rendering of every screen, HUD write-out, lane mirror, focus, live announcements. |
 | `src/audio.js` | WebAudio buses, sample rotation per event, synth fallback, focus suspension. |
 | `src/store.js` | Versioned, sanitized `localStorage` save (settings incl. `graphics`, best scores, highest stage). |
-| `src/platform.js` | Launch-token capture + 45-min refresh (memory only), profile fetch, cloud-save slot, round-trip-corrected clock sync. |
+| `src/platform.js` | StarHermit adapter over the SDK (launch token, sign-in, profile/avatar, cloud-save slot, settings KV, key bindings, invite link) plus signed-in round-trip-corrected clock sync; no network at all standalone. |
 | `src/i18n.js` | Nine locale tables, negotiation, `{param}` interpolation, `missingKeys()` test hook. |
 | `server.js` | Static file server, `GET /api/v1/time`, validated `/ws` echo, traversal rejection. |
 | `vendor/` | `three.module.min.js` (r170) and `three/addons/` — the r170 post-processing passes, shaders, `RoomEnvironment` and `RoundedBoxGeometry` it imports (mapped as `three/addons/` in the import map). |
 | `assets/` | Title and results key art (WebP). |
 | `sfx/` | 18 Opus clips, `manifest.txt` (canonical), `manifest.json` (generator), `manifest.md` (audit). |
-| `tests/unit.mjs`, `tests/e2e.mjs` | 27 rules/content/i18n/gfx/server assertions; full Playwright playthrough including the Graphics panel. |
+| `tests/unit.mjs`, `tests/e2e.mjs` | 30 rules/content/i18n/gfx/server/platform assertions; full Playwright playthrough including the Graphics panel. |
 
 ## 2. Design pillars
 
@@ -123,7 +124,7 @@ There is no undo (the simulation is continuous and real-time) and no hint system
 
 **Curve.** Across stages 1→40, `t` runs 0→1: length 900→1800 m, row spacing 78→44 m, double-block chance 0.10→0.65, pad chance 0.50→0.30, traffic 12–20 → 18–28 m/s, par time = length/30 s, theme cycling through the five palettes. Difficulty therefore comes from a shrinking reaction window and denser walls, not from raising the player's speed.
 
-**Daily content.** The day key is `YYYY-MM-DD` UTC and the seed hashes `lane-sprint/v2/daily/<key>`; spacing (50–70 m) and double-block chance (0.25–0.60) are derived from the seed. Days are immutable once published; `platform.syncTime()` corrects the clock against the host so a skewed device does not get yesterday's stage.
+**Daily content.** The day key is `YYYY-MM-DD` UTC and the seed hashes `lane-sprint/v2/daily/<key>`; spacing (50–70 m) and double-block chance (0.25–0.60) are derived from the seed. Days are immutable once published; When signed in, `platform.syncTime()` corrects the clock against the host so a skewed device does not get yesterday's stage; standalone uses the device clock.
 
 **Unlocks** are stage access only. There is no currency, no cosmetic shop and no stat progression.
 
@@ -210,11 +211,23 @@ Interpolation is `{name}` token replacement (`t(key, params)`); a unit test asse
 
 ## 12. StarHermit integration
 
-`starhermit.txt` declares `name`, `launch=index.html`, `owner` and `server=server.js`; `coverart.png` is the platform card.
+`starhermit.txt` declares `name`, `launch=index.html`, `owner` and `server=server.js`; `coverart.png` is the platform card. It also declares the keyboard actions `control.lane_left=ArrowLeft+KeyA`, `lane_right=ArrowRight+KeyD`, `boost=Space+KeyW+ArrowUp`, `pause=Escape+KeyP`, `restart=KeyR`.
 
-**Used:** launch-context handshake — `platform.readLaunchContext()` reads the `#game_token=<jwt>` fragment once (query params remain a local-dev fallback), strips it via `history.replaceState`, decodes `sub`/`game_scope` (never hard-coded), and marks the session hosted; every platform request then carries `Authorization: Bearer …`. Token refresh — `POST /api/v1/games/{slug}/launch-token` every 45 min (60 s retry on failure), swapping in the re-minted token. Account identity — `GET /api/v1/users/{sub}/profile`, showing the nickname (never a username; `"Player "+id8` fallback) in the HUD and title line. Cloud saves — the `lane-sprint/v1` document is mirrored to `GET`/`PUT /api/v1/me/cloud-saves/{slug}` as a stored zip+base64 (remote wins on boot when present; localStorage stays the offline cache; saves debounce 2 s and flush on `pagehide`), with a sync badge in the HUD. Authoritative time — `GET /api/v1/time` with round-trip correction (`syncTime`) so the Daily stage matches the platform's UTC day rather than the device clock. A validated `/ws` endpoint is served and hardened (16 KB max payload, JSON shape check, `ping`/`pong`) as the transport for future hosted features.
+`starhermit-sdk.js` (the shared client, unmodified) loads before `src/index.js`; `platform.readLaunchContext()` calls `StarHermit.init()` first thing at boot.
 
-**Not used:** leaderboards, achievements, friend presence, and server-side session records. Best scores remain personal records, mirrored through the cloud save. Nothing in the game requires a host to be playable.
+**Used:**
+- **Launch token** — the SDK reads `#game_token=` (or the `#access_token=` sign-in return), strips it, takes `sub`/`game_scope` from it (never hard-coded) and renews it before expiry; every platform call carries `Authorization: Bearer …`. If renewal is refused a toast says the player is signed out and play continues locally.
+- **Sign-in** — on `<id>.starhermit.com` without a token the title shows **Sign in with StarHermit**; hidden when signed in and when running locally.
+- **Account identity** — the profile nickname (never a username; `"Player " + id` fallback) and avatar in the HUD and on the title line.
+- **Cloud save** — the `lane-sprint/v1` document lives in the slot `game:<slug>` (remote wins on boot when present; localStorage stays the offline cache; saves debounce 2 s and flush with keepalive on `pagehide`/hidden), with a sync badge in the HUD.
+- **Settings KV** — locale, reduced motion, high contrast, sound and graphics are mirrored with `patchSettings` on change (600 ms debounce); on boot the platform values are applied over the local ones.
+- **Controls** — `keydown` routes by `event.code` through `StarHermit.loadBindings`; when the player has rebound keys, How to play appends the effective keys.
+- **Invite link** — **Invite a friend** on the title (signed in only) copies `StarHermit.inviteLink()` with a confirmation toast.
+- **Authoritative time** — signed in only, `GET /api/v1/time` with round-trip correction (`syncTime`) so the Daily stage matches the platform's UTC day rather than the device clock. Standalone (no launch token) the client makes no `/api` or `/ws` request at all.
+
+Account strings (sign-in, invite, toasts) are localized in all nine locales (`sh.*` keys in `src/i18n.js`).
+
+**Not used:** `server.js` is a static host with a hardened `/ws` echo, not a platform game script, so platform sessions, matchmaking, session invites, chat, replays, achievements and leaderboards have nothing to drive them; best scores remain personal records, mirrored through the cloud save. No realtime rooms or voice. Nothing in the game requires a host to be playable.
 
 ## 13. Technical architecture
 
@@ -232,11 +245,11 @@ Interpolation is `{name}` token replacement (`t(key, params)`); a unit test asse
 
 ## 14. Testing and acceptance criteria
 
-`npm test` = `tests/unit.mjs` (23 assertions) then `tests/e2e.mjs`.
+`npm test` = `tests/unit.mjs` (30 assertions) then `tests/e2e.mjs`.
 
-**Unit** covers: PRNG reproducibility; all 40 stages pass `validateStage` (rows never block every lane, pads in range, positive length and par); every stage is finished by the non-boosting reference solver; the Daily seed is stable per UTC day and differs across days; legality rules including "boost must not stack" and terminal lockout; illegal actions counted, never applied; a passive run always terminates within 200 s; the graphics model (GPU detection incl. the touch cap, preset/override resolution, scale clamping, presets clearing overrides, sanitizing and the cost summary); the score breakdown sums to its total and yields integers; unfinished runs earn no bonuses; identical command streams hash identically; replay verification matches, including a command issued on the current tick; `advance` is frame-rate independent; all nine locales complete with working interpolation; the server's content types, `/api/v1/time`, unknown-API JSON errors, 404s, traversal rejection and non-GET rejection.
+**Unit** covers: PRNG reproducibility; all 40 stages pass `validateStage` (rows never block every lane, pads in range, positive length and par); every stage is finished by the non-boosting reference solver; the Daily seed is stable per UTC day and differs across days; legality rules including "boost must not stack" and terminal lockout; illegal actions counted, never applied; a passive run always terminates within 200 s; the graphics model (GPU detection incl. the touch cap, preset/override resolution, scale clamping, presets clearing overrides, sanitizing and the cost summary); the score breakdown sums to its total and yields integers; unfinished runs earn no bonuses; identical command streams hash identically; replay verification matches, including a command issued on the current tick; `advance` is frame-rate independent; all nine locales complete with working interpolation; the server's content types, `/api/v1/time`, unknown-API JSON errors, 404s, traversal rejection and non-GET rejection; and `src/platform.js` over the SDK with a stubbed fetch — token read and stripped, nickname, cloud save round-trip through `game:<slug>`, settings PATCH, binding overrides, invite link, Bearer on every call, zero fetches standalone (including `syncTime`), sign-in on the hosted domain.
 
-**E2E** runs the whole flow twice, at 1280×800 desktop and a 390×844 mobile touch viewport: boot to title, no clipped text, help open/close, settings toggles plus a locale switch that changes `documentElement.lang`, settings surviving a reload, the Graphics section (Low then High applied to `data-gfx-preset` and the summary, a bloom override, the render-scale slider driven by arrow keys, the frame-rate toggle, all surviving a reload, then an Ultra practice run and a return to Auto from the pause menu), practice run advancing, lane controls moving the car and updating the mirror, boost activating then reporting a cooldown, pause freezing the tick and resume restoring it, restart returning to tick 0, a run reaching a terminal state and showing results, replay hash matching, quit returning to title, canvas resizing with the viewport — and it fails on any console error or warning, page error, failed request or HTTP ≥ 400.
+**E2E** runs the whole flow twice, at 1280×800 desktop and a 390×844 mobile touch viewport: boot to title, no clipped text, help open/close, settings toggles plus a locale switch that changes `documentElement.lang`, settings surviving a reload, the Graphics section (Low then High applied to `data-gfx-preset` and the summary, a bloom override, the render-scale slider driven by arrow keys, the frame-rate toggle, all surviving a reload, then an Ultra practice run and a return to Auto from the pause menu), practice run advancing, lane controls moving the car and updating the mirror, boost activating then reporting a cooldown, pause freezing the tick and resume restoring it, restart returning to tick 0, a run reaching a terminal state and showing results, replay hash matching, quit returning to title, canvas resizing with the viewport, then StarHermit: standalone makes no same-origin `/api` or `/ws` request (whole pass) and shows no account buttons, and a `#game_token=` launch against a stubbed API (`page.route`) shows the nickname on the title, strips the token, loads `game:<slug>`, and Invite a friend shows a toast — and it fails on any console error or warning, page error, failed request or HTTP ≥ 400.
 
 **QA bar (checkable statements).** Every implemented feature is reachable by clicking visible UI. The console is clean across both viewports. No text or control is clipped at either size. A first-time player is taught by stage 1's low density, the always-visible boost chip, the automatic pad boost and a complete "How to play" screen. Assets that could use platform features do (time sync, launch token); no multiplayer feature exists outside the platform.
 

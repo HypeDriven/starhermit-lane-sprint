@@ -124,14 +124,14 @@ function scheduleCloudPush() {
 }
 
 /** Pushes the current document now; used by the debounce timer and pagehide. */
-export async function flushCloudPush() {
+export async function flushCloudPush(keepalive) {
 	if (!platform.isHosted()) return false;
 	clearTimeout(pushTimer);
 	pushTimer = 0;
 	if (pushInFlight) return pushInFlight;
 	pushInFlight = (async () => {
 		try {
-			await platform.putCloudSave(load());
+			await platform.putCloudSave(load(), keepalive);
 			setSyncState('synced');
 			return true;
 		} catch (_) {
@@ -146,9 +146,9 @@ export async function flushCloudPush() {
 
 // Flush pending saves when the page is hidden or torn down.
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {
-	window.addEventListener('pagehide', () => { flushCloudPush().catch(() => {}); });
+	window.addEventListener('pagehide', () => { flushCloudPush(true).catch(() => {}); });
 	document.addEventListener('visibilitychange', () => {
-		if (document.hidden) flushCloudPush().catch(() => {});
+		if (document.hidden) flushCloudPush(true).catch(() => {});
 	});
 }
 

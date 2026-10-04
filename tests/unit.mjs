@@ -288,6 +288,88 @@ await test('non-GET methods are rejected', async () => {
 	assert.equal(res.status, 405);
 });
 
+// ---- StarHermit platform adapter over the shared SDK ----
+{
+	const { readFileSync } = await import('node:fs');
+	const platform = await import(src('platform.js'));
+	const sdkModule = { exports: {} };
+	new Function('module', 'exports', readFileSync(join(ROOT, 'starhermit-sdk.js'), 'utf8'))(sdkModule, sdkModule.exports);
+	const SDK = sdkModule.exports;
+	const b64u = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
+	const jwt = 'h.' + b64u({ sub: 'user-123456789', game_scope: 'gid-1', exp: Math.floor(Date.now() / 1000) + 3600 }) + '.s';
+	const calls = [];
+	const saves = {};
+	const kv = {};
+	const fetchStub = async (url, init = {}) => {
+		const method = init.method || 'GET';
+		const body = init.body ? JSON.parse(init.body) : undefined;
+		calls.push({ method, url, body, auth: init.headers && init.headers.Authorization });
+		const r = (st, b) => new Response(b, { status: st });
+		if (url.includes('/cloud-saves/')) {
+			const key = decodeURIComponent(url.split('/cloud-saves/')[1]);
+			if (method === 'PUT') { saves[key] = Buffer.from(body.dataBase64, 'base64'); return r(200, '{}'); }
+			return saves[key] ? r(200, saves[key]) : r(404, '');
+		}
+		if (url.endsWith('/profile')) return r(200, JSON.stringify({ username: 'pk', nickname: 'Al' }));
+		if (/\/settings$/.test(url)) { if (method === 'PATCH') Object.assign(kv, body.settings); return r(200, JSON.stringify({ settings: kv })); }
+		if (url.endsWith('/controls')) return r(200, JSON.stringify({ actions: [{ action: 'boost', codes: ['KeyB'] }] }));
+		return r(404, '');
+	};
+	const makeWin = (hash, hostname = 'localhost') => {
+		const win = { location: { hash, search: '', pathname: '/', hostname, origin: 'https://' + hostname, href: '' }, history: { replaceState: (a, b, u) => { win.replaced = u; } } };
+		return win;
+	};
+
+	await test('platform: launch token read + stripped, nickname, cloud save game:<slug>, settings KV, bindings, invite', async () => {
+		const win = makeWin('#game_token=' + jwt);
+		const sh = SDK.create({ window: win, fetch: fetchStub });
+		platform.useSdk(sh);
+		const ctx = platform.readLaunchContext();
+		assert.deepEqual(ctx, { hosted: true, userId: 'user-123456789', gameSlug: 'gid-1' });
+		assert.equal(win.replaced, '/');
+		assert.equal((await platform.fetchProfile()).nickname, 'Al');
+		assert.ok(await platform.putCloudSave({ version: 1, highestStage: 7 }));
+		const put = calls.find((c) => c.method === 'PUT');
+		assert.equal(put.url, '/api/v1/me/cloud-saves/' + encodeURIComponent('game:gid-1'));
+		assert.deepEqual(await platform.fetchCloudSave(), { version: 1, highestStage: 7 });
+		platform.patchSettings({ sound: false });
+		await new Promise((r) => setTimeout(r, 10));
+		const patch = calls.find((c) => c.method === 'PATCH');
+		assert.equal(patch.url, '/api/v1/games/gid-1/settings');
+		assert.deepEqual(patch.body, { settings: { sound: false } });
+		assert.deepEqual(await platform.getSettings(), { sound: false });
+		assert.deepEqual(await platform.loadBindings({ boost: ['Space'], restart: ['KeyR'] }), { boost: ['KeyB'], restart: ['KeyR'] });
+		assert.ok(platform.inviteLink().endsWith('/game-invite/user-123456789/gid-1'));
+		assert.ok(calls.every((c) => c.auth === 'Bearer ' + sh.token));
+		sh.signOut();
+	});
+
+	await test('platform: standalone makes no network calls', async () => {
+		let fetched = 0;
+		const sh = SDK.create({ window: makeWin(''), fetch: async () => { fetched++; throw new Error('offline'); } });
+		platform.useSdk(sh);
+		assert.equal(platform.readLaunchContext().hosted, false);
+		assert.equal(platform.canSignIn(), false);
+		assert.equal(await platform.fetchProfile(), null);
+		assert.equal(await platform.fetchCloudSave(), null);
+		assert.equal(await platform.putCloudSave({ a: 1 }), false);
+		platform.patchSettings({ a: 1 });
+		assert.deepEqual(await platform.getSettings(), {});
+		assert.deepEqual(await platform.loadBindings({ restart: ['KeyR'] }), { restart: ['KeyR'] });
+		assert.equal(platform.inviteLink(), null);
+		const realFetch = globalThis.fetch;
+		globalThis.fetch = async () => { fetched++; throw new Error('offline'); };
+		try { assert.equal((await platform.syncTime()).ok, false); } finally { globalThis.fetch = realFetch; }
+		assert.equal(fetched, 0);
+	});
+
+	await test('platform: hosted domain without a token offers sign-in', () => {
+		platform.useSdk(SDK.create({ window: makeWin('', 'gid-1.starhermit.com'), fetch: async () => { throw new Error('x'); } }));
+		platform.readLaunchContext();
+		assert.equal(platform.canSignIn(), true);
+	});
+}
+
 serverMod.webSocketServer.close();
 await new Promise((resolve) => serverMod.httpServer.close(resolve));
 

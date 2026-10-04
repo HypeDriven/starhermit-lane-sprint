@@ -10,6 +10,9 @@ let els = {};
 let onAction = () => {};
 let lastAnnouncement = '';
 let playerName = '';
+let avatarUrl = null;
+let account = { invite: false, signIn: false };
+let keyHint = '';
 let syncState = 'offline';
 
 const SYNC_LABEL_KEYS = { synced: 'syncSynced', saving: 'syncSaving', offline: 'syncOffline', error: 'syncError' };
@@ -90,9 +93,15 @@ function renderPlayerLine(parent) {
 	if (!playerName && syncState === 'offline') return;
 	const line = document.createElement('p');
 	line.className = 'player-line';
+	if (playerName && avatarUrl) {
+		const img = document.createElement('img');
+		img.className = 'player-avatar';
+		img.src = avatarUrl;
+		img.alt = '';
+		line.appendChild(img);
+	}
 	if (playerName) {
-		line.textContent = i18n.t('playingAs', { name: playerName });
-		line.appendChild(document.createTextNode(' '));
+		line.appendChild(document.createTextNode(i18n.t('playingAs', { name: playerName }) + ' '));
 	}
 	line.appendChild(makeSyncBadge());
 	(parent || els.title).appendChild(line);
@@ -111,6 +120,34 @@ function refreshPlayerHud() {
 		els.hudSync.dataset.state = syncState;
 		els.hudSync.textContent = syncLabel();
 	}
+}
+
+/** StarHermit account buttons on the title: { invite, signIn } booleans. */
+export function setAccount(next) {
+	account = Object.assign({ invite: false, signIn: false }, next);
+}
+
+/** Avatar object URL shown beside the title-screen player line. */
+export function setAvatar(url) { avatarUrl = url || null; }
+
+/** Effective key list shown under the Help keyboard line when the player rebound keys. */
+export function setKeyHint(text) { keyHint = text || ''; }
+
+/** Short confirmation toast (invite link copied, signed out). */
+let toastTimer = 0;
+export function toast(text) {
+	let el = document.getElementById('sh-toast');
+	if (!el) {
+		el = document.createElement('div');
+		el.id = 'sh-toast';
+		el.className = 'sh-toast';
+		el.setAttribute('role', 'status');
+		document.body.appendChild(el);
+	}
+	el.textContent = text;
+	el.hidden = false;
+	clearTimeout(toastTimer);
+	toastTimer = setTimeout(() => { el.hidden = true; }, 3500);
 }
 
 /** Account nickname from the platform profile; shown in the HUD + title line. */
@@ -148,6 +185,8 @@ export function renderStatic(state) {
 		nav.appendChild(button(i18n.t('practice'), 'practice'));
 		nav.appendChild(button(i18n.t('help'), 'open-help'));
 		nav.appendChild(button(i18n.t('settings'), 'open-settings'));
+		if (account.invite) nav.appendChild(button(i18n.t('sh.invite'), 'invite'));
+		if (account.signIn) nav.appendChild(button(i18n.t('sh.signIn'), 'sign-in'));
 		els.title.append(h, p, art, nav);
 	}
 
@@ -157,6 +196,7 @@ export function renderStatic(state) {
 		const body = document.createElement('p'); body.textContent = i18n.t('helpBody');
 		const h3 = document.createElement('h3'); h3.textContent = i18n.t('helpControls');
 		const kb = document.createElement('p'); kb.textContent = i18n.t('helpKeyboard');
+		if (keyHint) kb.appendChild(document.createTextNode(' (' + keyHint + ')'));
 		const touch = document.createElement('p'); touch.textContent = i18n.t('helpTouch');
 		const nav = document.createElement('div'); nav.className = 'menu';
 		nav.appendChild(button(i18n.t('back'), 'close-overlay', 'btn btn-primary'));

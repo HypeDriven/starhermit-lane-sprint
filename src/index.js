@@ -47,6 +47,7 @@ function isTouchDevice() {
 function applyGraphics(next) {
 	settings.graphics = next;
 	store.save({ graphics: next });
+	mirrorSettings();
 	render.setGraphics(next);
 	ui.refreshSettings(settingsView());
 }
@@ -204,6 +205,19 @@ function goTitle() {
 	ui.announce(i18n.t('title'));
 }
 
+// Preferences mirrored to the StarHermit per-player settings KV (debounced).
+const KV_KEYS = ['locale', 'reducedMotion', 'highContrast', 'sound', 'graphics'];
+let kvTimer = 0;
+function mirrorSettings() {
+	if (!platform.isHosted()) return;
+	clearTimeout(kvTimer);
+	kvTimer = setTimeout(() => {
+		const out = {};
+		for (const k of KV_KEYS) if (settings[k] !== undefined) out[k] = settings[k];
+		platform.patchSettings(out);
+	}, 600);
+}
+
 function applySettings() {
 	store.save({
 		locale: settings.locale,
@@ -211,6 +225,7 @@ function applySettings() {
 		highContrast: settings.highContrast,
 		sound: settings.sound,
 	});
+	mirrorSettings();
 	render.setAccessibility({ reducedMotion: settings.reducedMotion, highContrast: settings.highContrast });
 	audio.setEnabled(settings.sound);
 	document.body.classList.toggle('reduced-motion', !!settings.reducedMotion);
@@ -229,6 +244,8 @@ function handleAction(action, value) {
 		case 'practice': startStage(getStage(1), false); return;
 		case 'daily': startStage(getDailyStage(platform.now()), true); return;
 		case 'open-help': openOverlay('help'); return;
+		case 'invite': inviteFriend(); return;
+		case 'sign-in': platform.signIn(); return;
 		case 'open-settings': ui.refreshSettings(settingsView()); openOverlay('settings'); return;
 		case 'gfx-preset': applyGraphics(gfx.applyPreset(settings.graphics, value)); return;
 		case 'gfx-scale': applyGraphics(Object.assign({}, settings.graphics, { render_scale: Number(value) / 100 })); return;
@@ -270,28 +287,55 @@ function handleAction(action, value) {
 	}
 }
 
-const KEY_ACTIONS = {
-	ArrowLeft: 'lane_left', KeyA: 'lane_left',
-	ArrowRight: 'lane_right', KeyD: 'lane_right',
-	Space: 'boost', KeyW: 'boost', ArrowUp: 'boost',
+// Keyboard bindings by KeyboardEvent.code; defaults mirror the control.* lines
+// in starhermit.txt, and StarHermit.loadBindings applies platform overrides.
+const DEFAULT_BINDINGS = {
+	lane_left: ['ArrowLeft', 'KeyA'], lane_right: ['ArrowRight', 'KeyD'],
+	boost: ['Space', 'KeyW', 'ArrowUp'], pause: ['Escape', 'KeyP'], restart: ['KeyR'],
 };
+let bindings = JSON.parse(JSON.stringify(DEFAULT_BINDINGS));
+function actionForCode(code) {
+	for (const a of Object.keys(bindings)) if (bindings[a].includes(code)) return a;
+	return null;
+}
+/** Glyph list of the effective keys, shown in Help when they differ from the defaults. */
+function keyHintText() {
+	if (JSON.stringify(bindings) === JSON.stringify(DEFAULT_BINDINGS)) return '';
+	const name = (c) => ({ ArrowLeft: '←', ArrowRight: '→', ArrowUp: '↑', ArrowDown: '↓', Escape: 'Esc', Space: '␣' }[c] || c.replace(/^Key/, '').replace(/^Digit/, ''));
+	const k = (a) => bindings[a].map(name).join('/');
+	return `◀ ${k('lane_left')} · ▶ ${k('lane_right')} · ⚡ ${k('boost')} · ❚❚ ${k('pause')} · ↻ ${k('restart')}`;
+}
+
+function inviteFriend() {
+	const link = platform.inviteLink();
+	if (!link) return;
+	const done = (ok) => ui.toast(ok ? i18n.t('sh.copied') : i18n.t('sh.copyFailed', { link }));
+	try { navigator.clipboard.writeText(link).then(() => done(true), () => done(false)); } catch (_) { done(false); }
+}
+
+function refreshAccount() {
+	ui.setAccount({ invite: platform.isHosted(), signIn: platform.canSignIn() });
+	if (settings) ui.renderStatic(settingsView());
+	if (phase === PHASE.TITLE) ui.showScreen('title');
+}
 
 function onKeyDown(e) {
 	if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
 	const target = e.target;
 	if (target && (target.tagName === 'SELECT' || target.tagName === 'INPUT')) return;
-	if (e.code === 'Escape' || e.code === 'KeyP') {
+	const bound = actionForCode(e.code);
+	if (bound === 'pause') {
 		e.preventDefault();
 		if (phase === PHASE.OVERLAY) handleAction('close-overlay');
 		else if (phase === PHASE.PAUSED) handleAction('resume');
 		else if (phase === PHASE.PLAY) setPaused(true);
 		return;
 	}
-	if (e.code === 'KeyR' && (phase === PHASE.PLAY || phase === PHASE.PAUSED || phase === PHASE.RESULTS)) {
+	if (bound === 'restart' && (phase === PHASE.PLAY || phase === PHASE.PAUSED || phase === PHASE.RESULTS)) {
 		e.preventDefault(); handleAction('restart'); return;
 	}
 	// Buttons keep their native Enter/Space activation; only gameplay keys are captured.
-	const action = KEY_ACTIONS[e.code];
+	const action = bound === 'lane_left' || bound === 'lane_right' || bound === 'boost' ? bound : null;
 	if (!action) return;
 	if (phase !== PHASE.PLAY) return;
 	e.preventDefault();
@@ -331,10 +375,36 @@ export function boot() {
 	if (started) return; started = true;
 
 	platform.readLaunchContext();
+	ui.setAccount({ invite: platform.isHosted(), signIn: platform.canSignIn() });
+	platform.onAuth((signedIn) => {
+		if (!signedIn) { ui.setPlayerName(''); ui.setAvatar(null); ui.toast(i18n.t('sh.signedOut')); }
+		refreshAccount();
+	});
+	platform.loadBindings(DEFAULT_BINDINGS).then((b) => {
+		bindings = b;
+		ui.setKeyHint(keyHintText());
+		if (settings) ui.renderStatic(settingsView());
+		if (phase === PHASE.TITLE) ui.showScreen('title');
+	}).catch(() => {});
 	if (platform.isHosted()) {
-		platform.startTokenRefresh();
 		platform.fetchProfile().then((profile) => {
-			if (profile) ui.setPlayerName(profile.nickname);
+			if (profile) { ui.setPlayerName(profile.nickname); refreshAccount(); } // title line shows the nickname
+			return platform.fetchAvatar();
+		}).then((url) => {
+			if (url) { ui.setAvatar(url); refreshAccount(); }
+		}).catch(() => {});
+		// The platform settings KV wins over the local copy when signed in.
+		platform.getSettings().then((remote) => {
+			const patch = {};
+			for (const k of KV_KEYS) if (remote && remote[k] !== undefined) patch[k] = remote[k];
+			if (!Object.keys(patch).length || !settings) return;
+			Object.assign(settings, patch);
+			if (patch.locale) settings.locale = i18n.setLocale(patch.locale);
+			if (patch.graphics) { try { render.setGraphics(settings.graphics); } catch (_) { /* no WebGL */ } }
+			store.save(patch);
+			applySettings();
+			clearTimeout(kvTimer); // these values came from the KV; nothing to mirror back
+			refreshAccount();
 		}).catch(() => {});
 		store.syncFromCloud().then((replaced) => {
 			if (!replaced) return;

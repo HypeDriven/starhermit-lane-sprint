@@ -302,3 +302,8 @@ body.high-contrast .key-art { display: none; }
   z-index: 5;
 }
 #fps-meter[hidden] { display: none; }
+
+/* StarHermit account: avatar on the title player line, confirmation toast */
+.player-avatar { width: 20px; height: 20px; border-radius: 50%; object-fit: cover; vertical-align: middle; margin-right: 6px; }
+.sh-toast { position: fixed; left: 50%; bottom: max(16px, env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 50; max-width: calc(100vw - 32px); box-sizing: border-box; padding: 10px 16px; border-radius: 10px; background: rgba(12, 16, 24, 0.94); color: #fff; border: 1px solid rgba(255, 255, 255, 0.2); text-align: center; overflow-wrap: anywhere; }
+.sh-toast[hidden] { display: none; }

@@ -11,6 +11,7 @@
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { chromium } from 'playwright-core';
+import { launchToken, noContentUrls, stubStarHermit } from './starhermit-e2e.mjs';
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const serverMod = await import(join(ROOT, 'server.js'));
@@ -21,8 +22,13 @@ const step = async (name, fn) => { await fn(); console.log(`ok - ${name}`); };
 
 async function runPass(browser, label, contextOptions, baseUrl) {
 	const context = await browser.newContext(contextOptions);
+	await context.grantPermissions(['clipboard-read', 'clipboard-write']);
 	const page = await context.newPage();
 	const errors = [];
+	// Standalone (no launch token) must not touch any own-server route.
+	const ownServer = [];
+	const onRequest = (r) => { const u = new URL(r.url()); if (/^https?:$/.test(u.protocol) && /^\/(api|ws)(\/|$)/.test(u.pathname)) ownServer.push(r.method() + ' ' + u.pathname); };
+	page.on('request', onRequest);
 	page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
 	page.on('console', (m) => {
 		if ((m.type() === 'error' || m.type() === 'warning') && !browserNoise.test(m.text())) {
@@ -30,7 +36,11 @@ async function runPass(browser, label, contextOptions, baseUrl) {
 		}
 	});
 	page.on('response', (r) => { if (r.status() >= 400) errors.push(`http ${r.status()}: ${r.url()}`); });
-	page.on('requestfailed', (r) => errors.push(`requestfailed: ${r.url()} (${r.failure()?.errorText})`));
+	page.on('requestfailed', (r) => {
+		// A 204 from the stubbed StarHermit API surfaces as ERR_ABORTED in Chromium; it is not a failure.
+		if (noContentUrls.has(r.url())) return;
+		errors.push(`requestfailed: ${r.url()} (${r.failure()?.errorText})`);
+	});
 
 	const shot = (stage) => page.screenshot({ path: `/tmp/lane-sprint-e2e-${stage}-${label}.png` });
 	const phase = () => page.evaluate(() => window.__laneSprint.getPhase());
@@ -280,6 +290,27 @@ async function runPass(browser, label, contextOptions, baseUrl) {
 			return c.width > 0 && c.height > 0 && Math.abs(c.clientHeight - window.innerHeight) < 2;
 		});
 		if (!ok) throw new Error('canvas did not track the viewport');
+	});
+
+	await step(`${label}: StarHermit — standalone makes no /api or /ws calls; launch token shows nickname, invite toast`, async () => {
+		await page.goto(baseUrl, { waitUntil: 'load', timeout: 30000 });
+		await page.waitForFunction(() => window.__laneSprint && window.__laneSprint.getPhase() === 'title', null, { timeout: 15000 });
+		if (await page.locator('[data-action="invite"], [data-action="sign-in"]').count()) throw new Error('account buttons shown standalone');
+		if (ownServer.length) throw new Error('standalone requested ' + ownServer.join(', '));
+		page.off('request', onRequest);
+		const calls = await stubStarHermit(page);
+		await page.goto(baseUrl + 'index.html#game_token=' + launchToken(), { waitUntil: 'load', timeout: 30000 });
+		await page.waitForFunction(() => /Al/.test(document.querySelector('#title-screen .player-line')?.textContent || ''), null, { timeout: 15000 });
+		if (page.url().includes('game_token')) throw new Error('token left in URL');
+		await page.click('[data-action="invite"]');
+		await page.waitForSelector('#sh-toast:not([hidden])');
+		const box = await page.locator('#sh-toast').boundingBox();
+		if (box.x < 0 || box.x + box.width > page.viewportSize().width + 1) throw new Error('toast cut off');
+		if (!calls.some((c) => c.includes('/cloud-saves/game%3Agid-1'))) throw new Error('no cloud-save load: ' + calls.join(', '));
+		await shot('signed-in');
+		// Let the debounced cloud save land on the stub before the context closes.
+		await page.waitForTimeout(2600);
+		await page.waitForLoadState('networkidle');
 	});
 
 	await context.close();
