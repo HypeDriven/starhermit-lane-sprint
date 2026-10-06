@@ -163,8 +163,8 @@ html, body {
   box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
 }
 .screen[hidden] { display: none; }
-.screen h1 { margin: 0 0 4px; font-size: clamp(28px, 7vw, 44px); letter-spacing: -0.02em; }
-.screen h2 { margin: 0 0 12px; font-size: clamp(22px, 5vw, 30px); }
+.screen h1 { margin: 0 0 4px; font-size: clamp(28px, calc(7vw / var(--ui-scale, 1)), 44px); letter-spacing: -0.02em; }
+.screen h2 { margin: 0 0 12px; font-size: clamp(22px, calc(5vw / var(--ui-scale, 1)), 30px); }
 .screen h3 { margin: 16px 0 4px; font-size: 16px; color: var(--accent); }
 .screen p { margin: 0 0 12px; max-width: 62ch; line-height: 1.5; color: var(--ink); }
 .tagline { color: var(--muted); }
@@ -271,6 +271,17 @@ body.high-contrast button, body.high-contrast .btn { border-color: #fff; backgro
 .key-art-results { aspect-ratio: 1024 / 346; }
 body.high-contrast .key-art { display: none; }
 @media (max-height: 620px) { .key-art { display: none; } }
+/* Short landscape phones: tighten overlays so the whole results panel (heading, breakdown and
+   buttons) fits without scrolling the heading away. */
+@media (max-height: 500px) {
+  #overlay { padding-top: calc(8px + var(--safe-top)); padding-bottom: calc(8px + var(--safe-bottom)); }
+  .screen { padding: 14px 20px; }
+  .screen h2 { margin-bottom: 6px; }
+  .screen p { margin-bottom: 6px; }
+  .menu { margin-top: 8px; }
+  .breakdown { margin-bottom: 6px; }
+  .breakdown th, .breakdown td { padding: 3px 4px; }
+}
 
 /* --- Graphics settings section --- */
 .gfx { margin-top: 8px; padding-top: 4px; border-top: 1px solid rgba(255, 255, 255, 0.12); }
@@ -305,5 +316,10 @@ body.high-contrast .key-art { display: none; }
 
 /* StarHermit account: avatar on the title player line, confirmation toast */
 .player-avatar { width: 20px; height: 20px; border-radius: 50%; object-fit: cover; vertical-align: middle; margin-right: 6px; }
-.sh-toast { position: fixed; left: 50%; bottom: max(16px, env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 50; max-width: calc(100vw - 32px); box-sizing: border-box; padding: 10px 16px; border-radius: 10px; background: rgba(12, 16, 24, 0.94); color: #fff; border: 1px solid rgba(255, 255, 255, 0.2); text-align: center; overflow-wrap: anywhere; }
+.sh-toast { position: fixed; left: 50%; bottom: max(16px, env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 50; max-width: calc(100vw / var(--ui-scale, 1) - 32px); box-sizing: border-box; padding: 10px 16px; border-radius: 10px; background: rgba(12, 16, 24, 0.94); color: #fff; border: 1px solid rgba(255, 255, 255, 0.2); text-align: center; overflow-wrap: anywhere; }
 .sh-toast[hidden] { display: none; }
+
+/* Large screens: ui-scale.js sets --ui-scale (exactly 1 up to 1600x1000). Every DOM layer over the
+   full-viewport canvas zooms by it; the canvas itself stays unzoomed. vw lengths inside these
+   layers are divided by --ui-scale above. */
+#hud, #banner, #overlay, #touch-controls, #fps-meter, .sh-toast { zoom: var(--ui-scale, 1); }

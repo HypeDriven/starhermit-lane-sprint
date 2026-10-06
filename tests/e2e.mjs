@@ -283,7 +283,8 @@ async function runPass(browser, label, contextOptions, baseUrl) {
 	});
 
 	await step(`${label}: canvas resizes with the viewport`, async () => {
-		await page.setViewportSize({ width: contextOptions.viewport.width, height: contextOptions.viewport.height - 120 });
+		const vp = page.viewportSize();
+		await page.setViewportSize({ width: vp.width, height: vp.height - 120 });
 		await page.waitForTimeout(200);
 		const ok = await page.evaluate(() => {
 			const c = document.getElementById('game-canvas');
