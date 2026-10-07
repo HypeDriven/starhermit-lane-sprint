@@ -104,4 +104,18 @@ export function loadBindings(defaults) {
 }
 
 /** Share link that friends the recipient and invites them to play. */
+/** Post a finished run to the leaderboards (score-script.js); resolves
+ *  { posted, rank } — rank on the high-score board, or null. Standalone: no call. */
+export async function submitScore(total) {
+	const s = sdk();
+	if (!isHosted() || typeof s.submitScores !== 'function') return { posted: false, rank: null };
+	const keys = await s.submitScores({ 'high-score': total }).catch(() => []);
+	if (!keys || !keys.includes('high-score')) return { posted: false, rank: null };
+	try {
+		const r = await s.leaderboard('high-score', { pageSize: 100 });
+		const me = ((r && r.items) || []).find((i) => i.userId === s.userId);
+		return { posted: true, rank: me ? me.rank : null };
+	} catch { return { posted: true, rank: null }; }
+}
+
 export function inviteLink() { return isHosted() ? sdk().inviteLink() : null; }

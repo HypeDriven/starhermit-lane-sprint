@@ -15,7 +15,7 @@ export const LOCALES = [
 
 const STRINGS = {
 	'en-US': {
-		'sh.signIn': "Sign in with StarHermit", 'sh.invite': "Invite a friend", 'sh.copied': "Invite link copied to clipboard.", 'sh.copyFailed': "Could not copy the invite link: {link}", 'sh.signedOut': "Signed out of StarHermit. Progress keeps saving on this device.",
+		'sh.signIn': "Sign in with StarHermit", 'sh.invite': "Invite a friend", 'sh.copied': "Invite link copied to clipboard.", 'sh.copyFailed': "Could not copy the invite link: {link}", 'sh.signedOut': "Signed out of StarHermit. Progress keeps saving on this device.", 'sh.lbPosting': "Posting score to the leaderboard…", 'sh.lbRank': "Leaderboard rank: #{rank}", 'sh.lbPosted': "Score posted to the leaderboard.", 'sh.lbNotPosted': "Score not posted to the leaderboard.",
 		title: 'Lane Sprint',
 		tagline: 'Switch lanes, time your boost, beat the road.',
 		play: 'Play stage {n}',
@@ -122,7 +122,7 @@ const STRINGS = {
 // Locale overrides. Keys absent from an override fall back to en-US.
 const OVERRIDES = {
 	'en-GB': {
-		'sh.signIn': "Sign in with StarHermit", 'sh.invite': "Invite a friend", 'sh.copied': "Invite link copied to clipboard.", 'sh.copyFailed': "Could not copy the invite link: {link}", 'sh.signedOut': "Signed out of StarHermit. Progress keeps saving on this device.",
+		'sh.signIn': "Sign in with StarHermit", 'sh.invite': "Invite a friend", 'sh.copied': "Invite link copied to clipboard.", 'sh.copyFailed': "Could not copy the invite link: {link}", 'sh.signedOut': "Signed out of StarHermit. Progress keeps saving on this device.", 'sh.lbPosting': "Posting score to the leaderboard…", 'sh.lbRank': "Leaderboard rank: #{rank}", 'sh.lbPosted': "Score posted to the leaderboard.", 'sh.lbNotPosted': "Score not posted to the leaderboard.",
 		tagline: 'Switch lanes, time your boost, beat the road.',
 		helpBody: 'Steer between three lanes to avoid traffic. Collect boost pads or trigger your own boost on a clear stretch. Reach the finishing line without hitting a car.',
 		breakdownDistance: 'Distance',
@@ -176,7 +176,7 @@ const OVERRIDES = {
 		gfxSumNoAa: 'no anti-aliasing',
 	},
 	'es-419': {
-		'sh.signIn': "Iniciar sesión con StarHermit", 'sh.invite': "Invitar a un amigo", 'sh.copied': "Enlace de invitación copiado al portapapeles.", 'sh.copyFailed': "No se pudo copiar el enlace de invitación: {link}", 'sh.signedOut': "Sesión de StarHermit cerrada. El progreso se sigue guardando en este dispositivo.",
+		'sh.signIn': "Iniciar sesión con StarHermit", 'sh.invite': "Invitar a un amigo", 'sh.copied': "Enlace de invitación copiado al portapapeles.", 'sh.copyFailed': "No se pudo copiar el enlace de invitación: {link}", 'sh.signedOut': "Sesión de StarHermit cerrada. El progreso se sigue guardando en este dispositivo.", 'sh.lbPosting': "Enviando la puntuación a la clasificación…", 'sh.lbRank': "Puesto en la clasificación: #{rank}", 'sh.lbPosted': "Puntuación enviada a la clasificación.", 'sh.lbNotPosted': "No se envió la puntuación a la clasificación.",
 		title: 'Lane Sprint',
 		tagline: 'Cambia de carril, calcula tu impulso y domina la ruta.',
 		play: 'Jugar etapa {n}',
@@ -279,7 +279,7 @@ const OVERRIDES = {
 		gfxSumNoAa: 'sin suavizado',
 	},
 	'es-ES': {
-		'sh.signIn': "Iniciar sesión con StarHermit", 'sh.invite': "Invitar a un amigo", 'sh.copied': "Enlace de invitación copiado al portapapeles.", 'sh.copyFailed': "No se ha podido copiar el enlace de invitación: {link}", 'sh.signedOut': "Se ha cerrado la sesión de StarHermit. El progreso se sigue guardando en este dispositivo.",
+		'sh.signIn': "Iniciar sesión con StarHermit", 'sh.invite': "Invitar a un amigo", 'sh.copied': "Enlace de invitación copiado al portapapeles.", 'sh.copyFailed': "No se ha podido copiar el enlace de invitación: {link}", 'sh.signedOut': "Se ha cerrado la sesión de StarHermit. El progreso se sigue guardando en este dispositivo.", 'sh.lbPosting': "Enviando la puntuación a la clasificación…", 'sh.lbRank': "Puesto en la clasificación: #{rank}", 'sh.lbPosted': "Puntuación enviada a la clasificación.", 'sh.lbNotPosted': "No se ha enviado la puntuación a la clasificación.",
 		tagline: 'Cambia de carril, calcula tu turbo y domina la carretera.',
 		play: 'Jugar etapa {n}',
 		daily: 'Reto diario',
@@ -381,7 +381,7 @@ const OVERRIDES = {
 		gfxSumNoAa: 'sin antialiasing',
 	},
 	'de-DE': {
-		'sh.signIn': "Mit StarHermit anmelden", 'sh.invite': "Freund einladen", 'sh.copied': "Einladungslink in die Zwischenablage kopiert.", 'sh.copyFailed': "Einladungslink konnte nicht kopiert werden: {link}", 'sh.signedOut': "Von StarHermit abgemeldet. Der Fortschritt wird weiter auf diesem Gerät gespeichert.",
+		'sh.signIn': "Mit StarHermit anmelden", 'sh.invite': "Freund einladen", 'sh.copied': "Einladungslink in die Zwischenablage kopiert.", 'sh.copyFailed': "Einladungslink konnte nicht kopiert werden: {link}", 'sh.signedOut': "Von StarHermit abgemeldet. Der Fortschritt wird weiter auf diesem Gerät gespeichert.", 'sh.lbPosting': "Punktzahl wird an die Bestenliste gesendet …", 'sh.lbRank': "Platz in der Bestenliste: #{rank}", 'sh.lbPosted': "Punktzahl an die Bestenliste gesendet.", 'sh.lbNotPosted': "Punktzahl nicht an die Bestenliste gesendet.",
 		tagline: 'Spur wechseln, Boost timen, Strecke meistern.',
 		play: 'Etappe {n} spielen',
 		daily: 'Tagesherausforderung',
@@ -483,7 +483,7 @@ const OVERRIDES = {
 		gfxSumNoAa: 'keine Kantenglättung',
 	},
 	'fr-FR': {
-		'sh.signIn': "Se connecter avec StarHermit", 'sh.invite': "Inviter un ami", 'sh.copied': "Lien d’invitation copié dans le presse-papiers.", 'sh.copyFailed': "Impossible de copier le lien d’invitation : {link}", 'sh.signedOut': "Déconnecté de StarHermit. La progression reste enregistrée sur cet appareil.",
+		'sh.signIn': "Se connecter avec StarHermit", 'sh.invite': "Inviter un ami", 'sh.copied': "Lien d’invitation copié dans le presse-papiers.", 'sh.copyFailed': "Impossible de copier le lien d’invitation : {link}", 'sh.signedOut': "Déconnecté de StarHermit. La progression reste enregistrée sur cet appareil.", 'sh.lbPosting': "Envoi du score au classement…", 'sh.lbRank': "Rang au classement : #{rank}", 'sh.lbPosted': "Score envoyé au classement.", 'sh.lbNotPosted': "Score non envoyé au classement.",
 		tagline: 'Changez de voie, calez votre boost, domptez la route.',
 		play: 'Jouer l’étape {n}',
 		daily: 'Défi quotidien',
@@ -585,7 +585,7 @@ const OVERRIDES = {
 		gfxSumNoAa: 'sans anticrénelage',
 	},
 	'fr-CA': {
-		'sh.signIn': "Se connecter avec StarHermit", 'sh.invite': "Inviter un ami", 'sh.copied': "Lien d’invitation copié dans le presse-papiers.", 'sh.copyFailed': "Impossible de copier le lien d’invitation : {link}", 'sh.signedOut': "Déconnecté de StarHermit. La progression reste enregistrée sur cet appareil.",
+		'sh.signIn': "Se connecter avec StarHermit", 'sh.invite': "Inviter un ami", 'sh.copied': "Lien d’invitation copié dans le presse-papiers.", 'sh.copyFailed': "Impossible de copier le lien d’invitation : {link}", 'sh.signedOut': "Déconnecté de StarHermit. La progression reste enregistrée sur cet appareil.", 'sh.lbPosting': "Envoi du pointage au classement…", 'sh.lbRank': "Rang au classement : #{rank}", 'sh.lbPosted': "Pointage envoyé au classement.", 'sh.lbNotPosted': "Pointage non envoyé au classement.",
 		tagline: 'Changez de voie, minutez votre boost, domptez la route.',
 		play: 'Jouer l’étape {n}',
 		daily: 'Défi du jour',
@@ -687,7 +687,7 @@ const OVERRIDES = {
 		gfxSumNoAa: 'sans anticrénelage',
 	},
 	'pt-BR': {
-		'sh.signIn': "Entrar com StarHermit", 'sh.invite': "Convidar um amigo", 'sh.copied': "Link de convite copiado para a área de transferência.", 'sh.copyFailed': "Não foi possível copiar o link de convite: {link}", 'sh.signedOut': "Você saiu do StarHermit. O progresso continua salvo neste dispositivo.",
+		'sh.signIn': "Entrar com StarHermit", 'sh.invite': "Convidar um amigo", 'sh.copied': "Link de convite copiado para a área de transferência.", 'sh.copyFailed': "Não foi possível copiar o link de convite: {link}", 'sh.signedOut': "Você saiu do StarHermit. O progresso continua salvo neste dispositivo.", 'sh.lbPosting': "Enviando a pontuação para o ranking…", 'sh.lbRank': "Posição no ranking: #{rank}", 'sh.lbPosted': "Pontuação enviada para o ranking.", 'sh.lbNotPosted': "A pontuação não foi enviada para o ranking.",
 		tagline: 'Troque de faixa, cronometre o impulso, domine a estrada.',
 		play: 'Jogar etapa {n}',
 		daily: 'Desafio diário',
@@ -789,7 +789,7 @@ const OVERRIDES = {
 		gfxSumNoAa: 'sem suavização',
 	},
 	'it-IT': {
-		'sh.signIn': "Accedi con StarHermit", 'sh.invite': "Invita un amico", 'sh.copied': "Link di invito copiato negli appunti.", 'sh.copyFailed': "Impossibile copiare il link di invito: {link}", 'sh.signedOut': "Disconnesso da StarHermit. I progressi restano salvati su questo dispositivo.",
+		'sh.signIn': "Accedi con StarHermit", 'sh.invite': "Invita un amico", 'sh.copied': "Link di invito copiato negli appunti.", 'sh.copyFailed': "Impossibile copiare il link di invito: {link}", 'sh.signedOut': "Disconnesso da StarHermit. I progressi restano salvati su questo dispositivo.", 'sh.lbPosting': "Invio del punteggio alla classifica…", 'sh.lbRank': "Posizione in classifica: #{rank}", 'sh.lbPosted': "Punteggio inviato alla classifica.", 'sh.lbNotPosted': "Punteggio non inviato alla classifica.",
 		tagline: 'Cambia corsia, dosa il boost, domina la strada.',
 		play: 'Gioca la tappa {n}',
 		daily: 'Sfida giornaliera',

@@ -108,7 +108,16 @@ function endStage() {
 		best: store.bestScore(key, isDaily),
 		newBest,
 		hasNextStage: !isDaily && currentStage.index < getStageCount(),
+		leaderboard: platform.isHosted() ? i18n.t('sh.lbPosting') : null,
 	});
+	if (platform.isHosted()) {
+		const run = current;
+		platform.submitScore(breakdown.total).then((r) => {
+			if (current !== run || phase !== PHASE.RESULTS) return;
+			ui.setLeaderboardLine(!r.posted ? i18n.t('sh.lbNotPosted')
+				: r.rank ? i18n.t('sh.lbRank', { rank: r.rank }) : i18n.t('sh.lbPosted'));
+		});
+	}
 	ui.announce(state.finished
 		? i18n.t('announceFinish', { s: state.elapsed.toFixed(1) })
 		: i18n.t('announceCrash', { m: Math.round(state.position) }));

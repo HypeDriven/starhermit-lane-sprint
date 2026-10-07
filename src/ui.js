@@ -491,6 +491,14 @@ export function showResults(view) {
 	meta.textContent = `${i18n.t('elapsed')}: ${view.elapsed.toFixed(1)}s · ${i18n.t('best')}: ${view.best}`;
 	els.results.appendChild(meta);
 
+	if (view.leaderboard) {
+		const lb = document.createElement('p');
+		lb.id = 'results-lb';
+		lb.setAttribute('aria-live', 'polite');
+		lb.textContent = view.leaderboard;
+		els.results.appendChild(lb);
+	}
+
 	if (view.newBest) {
 		const nb = document.createElement('p');
 		nb.className = 'new-best';
@@ -505,6 +513,12 @@ export function showResults(view) {
 	els.results.appendChild(nav);
 
 	showScreen('results');
+}
+
+/** Results screen leaderboard line (signed in only). */
+export function setLeaderboardLine(text) {
+	const lb = document.getElementById('results-lb');
+	if (lb) lb.textContent = text;
 }
 
 export function setOverlayBanner(text) {

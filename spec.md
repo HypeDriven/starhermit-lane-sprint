@@ -29,7 +29,8 @@
 | `src/store.js` | Versioned, sanitized `localStorage` save (settings incl. `graphics`, best scores, highest stage). |
 | `src/platform.js` | StarHermit adapter over the SDK (launch token, sign-in, profile/avatar, cloud-save slot, settings KV, key bindings, invite link) plus signed-in round-trip-corrected clock sync; no network at all standalone. |
 | `src/i18n.js` | Nine locale tables, negotiation, `{param}` interpolation, `missingKeys()` test hook. |
-| `server.js` | Static file server, `GET /api/v1/time`, validated `/ws` echo, traversal rejection. |
+| `score-script.js` | StarHermit platform script (`server=`): range-checks a finished run's total sent through `StarHermit.submitScores` and posts it to the `high-score` leaderboard (canonical copy in the games repo's `tools/score-script.js`). |
+| `server.js` | Local dev server: static files, `GET /api/v1/time`, validated `/ws` echo, traversal rejection. |
 | `vendor/` | `three.module.min.js` (r170) and `three/addons/` — the r170 post-processing passes, shaders, `RoomEnvironment` and `RoundedBoxGeometry` it imports (mapped as `three/addons/` in the import map). |
 | `assets/` | Title and results key art (WebP). |
 | `sfx/` | 18 Opus clips, `manifest.txt` (canonical), `manifest.json` (generator), `manifest.md` (audit). |
@@ -211,7 +212,7 @@ Interpolation is `{name}` token replacement (`t(key, params)`); a unit test asse
 
 ## 12. StarHermit integration
 
-`starhermit.txt` declares `name`, `launch=index.html`, `owner` and `server=server.js`; `coverart.png` is the platform card. It also declares the keyboard actions `control.lane_left=ArrowLeft+KeyA`, `lane_right=ArrowRight+KeyD`, `boost=Space+KeyW+ArrowUp`, `pause=Escape+KeyP`, `restart=KeyR`.
+`starhermit.txt` declares `name`, `launch=index.html`, `owner` and `server=score-script.js`; `coverart.png` is the platform card. It also declares the keyboard actions `control.lane_left=ArrowLeft+KeyA`, `lane_right=ArrowRight+KeyD`, `boost=Space+KeyW+ArrowUp`, `pause=Escape+KeyP`, `restart=KeyR`.
 
 `starhermit-sdk.js` (the shared client, unmodified) loads before `src/index.js`; `platform.readLaunchContext()` calls `StarHermit.init()` first thing at boot.
 
@@ -227,7 +228,9 @@ Interpolation is `{name}` token replacement (`t(key, params)`); a unit test asse
 
 Account strings (sign-in, invite, toasts) are localized in all nine locales (`sh.*` keys in `src/i18n.js`).
 
-**Not used:** `server.js` is a static host with a hardened `/ws` echo, not a platform game script, so platform sessions, matchmaking, session invites, chat, replays, achievements and leaderboards have nothing to drive them; best scores remain personal records, mirrored through the cloud save. No realtime rooms or voice. Nothing in the game requires a host to be playable.
+**Leaderboard:** when signed in, every finished run (Journey, Practice or Daily; finished or crashed) posts its score-breakdown total through `StarHermit.submitScores({ 'high-score': total })`; `score-script.js` posts it to the `high-score` board (integer, higher is better, 0–100,000). The results screen shows "Posting score to the leaderboard…", then "Leaderboard rank: #N" (or "Score posted to the leaderboard." / "Score not posted to the leaderboard."), localized through `src/i18n.js` (`sh.lb*`). Standalone posts nothing and shows no line.
+
+**Not used:** matchmaking, session invites, chat, replays and platform achievements (`score-script.js` reports only scores; `server.js` is the local dev host with a hardened `/ws` echo); per-stage best scores remain personal records, mirrored through the cloud save. No realtime rooms or voice. Nothing in the game requires a host to be playable.
 
 ## 13. Technical architecture
 
@@ -274,7 +277,7 @@ The player car, traffic cars, boost pads, road, markings, sky dome and speed lin
 
 ## 16. Known limitations
 
-- **Cloud mirror when hosted.** Best scores, highest stage and settings live in the `lane-sprint/v1` localStorage key, which is also mirrored to the platform cloud slot when a launch token is present (remote wins on boot, 2 s debounce, `pagehide` flush). Without a host — or after clearing site data with no cloud doc — progress is device-local. There are no leaderboards, friend comparisons or hosted daily rankings, so the Daily challenge is a personal-best chase.
+- **Cloud mirror when hosted.** Best scores, highest stage and settings live in the `lane-sprint/v1` localStorage key, which is also mirrored to the platform cloud slot when a launch token is present (remote wins on boot, 2 s debounce, `pagehide` flush). Without a host — or after clearing site data with no cloud doc — progress is device-local. The only shared ranking is the platform `high-score` board (all modes on one board); there are no friend comparisons or per-day daily rankings, so the Daily challenge is otherwise a personal-best chase.
 - **WebGL context loss is survived but not recovered.** Loss is detected and rendering stops cleanly; GPU resources are not rebuilt, so the player must reload.
 - **No gamepad support.** Keyboard, pointer and touch only.
 - **No music or ambience.** Audio is confirmatory only; long sessions are silent between cues.
