@@ -219,7 +219,7 @@ Interpolation is `{name}` token replacement (`t(key, params)`); a unit test asse
 - **Launch token** — the SDK reads `#game_token=` (or the `#access_token=` sign-in return), strips it, takes `sub`/`game_scope` from it (never hard-coded) and renews it before expiry; every platform call carries `Authorization: Bearer …`. If renewal is refused a toast says the player is signed out and play continues locally.
 - **Sign-in** — on `<id>.starhermit.com` without a token the title shows **Sign in with StarHermit**; hidden when signed in and when running locally.
 - **Account identity** — the profile nickname (never a username; `"Player " + id` fallback) and avatar in the HUD and on the title line.
-- **Cloud save** — the `lane-sprint/v1` document lives in the slot `game:<slug>` (remote wins on boot when present; localStorage stays the offline cache; saves debounce 2 s and flush with keepalive on `pagehide`/hidden), with a sync badge in the HUD.
+- **Cloud save** — the `lane-sprint/v1` document lives in the slot `game:<slug>` (remote wins on boot when present, and nothing is pushed until that load has read the slot; localStorage stays the offline cache; saves debounce 2 s and flush with keepalive on `pagehide`/hidden), with a sync badge in the HUD.
 - **Settings KV** — locale, reduced motion, high contrast, sound and graphics are mirrored with `patchSettings` on change (600 ms debounce); on boot the platform values are applied over the local ones.
 - **Controls** — `keydown` routes by `event.code` through `StarHermit.loadBindings`; when the player has rebound keys, How to play appends the effective keys.
 - **Invite link** — **Invite a friend** on the title (signed in only) copies `StarHermit.inviteLink()` with a confirmation toast.

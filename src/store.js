@@ -27,6 +27,7 @@ let cache = null;
 let syncState = 'offline';   // 'offline' | 'synced' | 'saving' | 'error'
 let pushTimer = 0;
 let pushInFlight = null;
+let cloudReady = false;      // hosted: no push until syncFromCloud() has read the slot
 const syncListeners = new Set();
 
 function storage() {
@@ -105,19 +106,33 @@ export async function syncFromCloud() {
 	if (!platform.isHosted()) return false;
 	try {
 		const remote = await platform.fetchCloudSave();
-		if (!remote || typeof remote !== 'object') { setSyncState('synced'); return false; }
+		cloudReady = true;
+		if (!remote || typeof remote !== 'object') {
+			// Empty slot: seed it only with real progress, never a fresh default doc.
+			if (hasProgress(load())) scheduleCloudPush(); else setSyncState('synced');
+			return false;
+		}
 		const merged = sanitize(remote);
 		writeLocal(merged);
 		setSyncState('synced');
 		return true;
 	} catch (_) {
+		cloudReady = true;
 		setSyncState('error');
 		return false;
 	}
 }
 
+function hasProgress(d) {
+	return d.highestStage > 1 || Object.keys(d.bestScores).length > 0 || Object.keys(d.dailyBest).length > 0;
+}
+
+// Pushes wait for syncFromCloud(): a boot-time save (applySettings) or a
+// pagehide flush during the load would otherwise PUT the stale local doc over
+// a newer cloud save.
 function scheduleCloudPush() {
 	if (!platform.isHosted()) { setSyncState('offline'); return; }
+	if (!cloudReady) return;
 	setSyncState('saving');
 	clearTimeout(pushTimer);
 	pushTimer = setTimeout(() => { flushCloudPush().catch(() => {}); }, CLOUD_DEBOUNCE_MS);
@@ -125,7 +140,7 @@ function scheduleCloudPush() {
 
 /** Pushes the current document now; used by the debounce timer and pagehide. */
 export async function flushCloudPush(keepalive) {
-	if (!platform.isHosted()) return false;
+	if (!platform.isHosted() || !cloudReady) return false;
 	clearTimeout(pushTimer);
 	pushTimer = 0;
 	if (pushInFlight) return pushInFlight;
