@@ -1045,8 +1045,8 @@ export function render(state, alpha, dtSeconds) {
 	updateShadowBox(pos);
 
 	ensurePost();
-	if (composer) composer.render(dt);
-	else renderer.render(scene, camera);
+	if (composer) (globalThis.GameOptions ? globalThis.GameOptions.draw(composer.renderer, () => composer.render(dt)) : composer.render(dt));
+	else (globalThis.GameOptions ? globalThis.GameOptions.draw(renderer, () => renderer.render(scene, camera)) : renderer.render(scene, camera));
 }
 
 // Shadow box follows the player, snapped to whole texels so it does not shimmer.

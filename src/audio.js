@@ -80,7 +80,7 @@ function tryPlaySample(name) {
 		const entry = requestSample(names[(start + i) % names.length]);
 		if (entry.state === 'ready' && entry.buffer) {
 			try {
-				const src = ctx.createBufferSource();
+				const src = (globalThis.GameOptions ? globalThis.GameOptions.trackSource(ctx.createBufferSource(), name) : ctx.createBufferSource());
 				src.buffer = entry.buffer;
 				src.connect(fxBus);
 				src.start();
@@ -94,7 +94,7 @@ function tryPlaySample(name) {
 function blip(freq, dur, type, gainVal) {
 	const c = ensureCtx(); if (!c || !bus()) return;
 	try {
-		const o = c.createOscillator(), g = c.createGain();
+		const o = (globalThis.GameOptions ? globalThis.GameOptions.trackSource(c.createOscillator(), null) : c.createOscillator()), g = c.createGain();
 		o.type = type || 'sine'; o.frequency.value = freq;
 		g.gain.setValueAtTime(gainVal, c.currentTime);
 		g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + dur);
