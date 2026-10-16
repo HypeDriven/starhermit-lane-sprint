@@ -5,6 +5,7 @@
 import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import * as fsMod from 'node:fs';
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const src = (f) => join(ROOT, 'src', f);
@@ -171,6 +172,26 @@ await test('every locale defines every string key', () => {
 	assert.equal(i18n.availableLocales().length, 9);
 });
 
+await test('every key used in the code is authored in all nine locales (no silent English fallback)', () => {
+	const { readdirSync, readFileSync } = fsMod;
+	const used = new Set();
+	for (const f of readdirSync(join(ROOT, 'src'))) {
+		if (!f.endsWith('.js') || f === 'i18n.js') continue;
+		const code = readFileSync(join(ROOT, 'src', f), 'utf8');
+		for (const m of code.matchAll(/i18n\.t\(\s*'([^']+)'/g)) used.add(m[1]);
+		for (const m of code.matchAll(/(?:label|aria)\([^,]+,\s*'([^']+)'\)/g)) used.add(m[1]);
+	}
+	assert.ok(used.size > 40, 'only ' + used.size + ' keys found');
+	const en = i18n.AUTHORED['en-US'];
+	const missingEn = [...used].filter((k) => !k.endsWith('_') && !(k in en)); // 'gfxTier_' + tier etc. are prefixes
+	assert.deepEqual(missingEn, [], 'keys used but not defined');
+	// en-GB intentionally inherits US spellings; the game name is not translated.
+	for (const id of ['es-419', 'es-ES', 'de-DE', 'fr-FR', 'fr-CA', 'pt-BR', 'it-IT']) {
+		const missing = Object.keys(en).filter((k) => k !== 'title' && !(k in i18n.AUTHORED[id]));
+		assert.deepEqual(missing, [], id + ' falls back to English for these keys');
+	}
+});
+
 await test('locale negotiation maps browser tags to shipped locales', () => {
 	assert.equal(i18n.negotiateLocale(null, ['pt-BR']), 'pt-BR');
 	assert.equal(i18n.negotiateLocale(null, ['es-MX']), 'es-419');
@@ -292,6 +313,7 @@ await test('non-GET methods are rejected', async () => {
 {
 	const { readFileSync } = await import('node:fs');
 	const platform = await import(src('platform.js'));
+	const store = await import(src('store.js'));
 	const sdkModule = { exports: {} };
 	new Function('module', 'exports', readFileSync(join(ROOT, 'starhermit-sdk.js'), 'utf8'))(sdkModule, sdkModule.exports);
 	const SDK = sdkModule.exports;
@@ -299,6 +321,8 @@ await test('non-GET methods are rejected', async () => {
 	const jwt = 'h.' + b64u({ sub: 'user-123456789', game_scope: 'gid-1', exp: Math.floor(Date.now() / 1000) + 3600 }) + '.s';
 	const calls = [];
 	const saves = {};
+	const etags = {};
+	let version = 0;
 	const kv = {};
 	const fetchStub = async (url, init = {}) => {
 		const method = init.method || 'GET';
@@ -306,8 +330,18 @@ await test('non-GET methods are rejected', async () => {
 		calls.push({ method, url, body, auth: init.headers && init.headers.Authorization });
 		const r = (st, b) => new Response(b, { status: st });
 		if (url.includes('/cloud-saves/')) {
-			const key = decodeURIComponent(url.split('/cloud-saves/')[1]);
-			if (method === 'PUT') { saves[key] = Buffer.from(body.dataBase64, 'base64'); return r(200, '{}'); }
+			// Conditional writes like the platform: a stale If-Match (or If-None-Match: *
+			// on a filled slot) is refused with 412; a success returns the new ETag.
+			const rest = decodeURIComponent(url.split('/cloud-saves/')[1]);
+			const key = rest.replace(/\/info$/, '');
+			if (rest.endsWith('/info')) return r(200, JSON.stringify(saves[key] ? { exists: true, etag: etags[key] } : { exists: false }));
+			if (method === 'PUT') {
+				const h = init.headers || {};
+				if ((h['If-Match'] && h['If-Match'] !== etags[key]) || (h['If-None-Match'] === '*' && saves[key])) return r(412, JSON.stringify({ etag: etags[key] }));
+				saves[key] = Buffer.from(body.dataBase64, 'base64');
+				etags[key] = '"v' + (++version) + '"';
+				return r(200, JSON.stringify({ etag: etags[key] }));
+			}
 			return saves[key] ? r(200, saves[key]) : r(404, '');
 		}
 		if (url.endsWith('/profile')) return r(200, JSON.stringify({ username: 'pk', nickname: 'Al' }));
@@ -337,7 +371,8 @@ await test('non-GET methods are rejected', async () => {
 		const patch = calls.find((c) => c.method === 'PATCH');
 		assert.equal(patch.url, '/api/v1/games/gid-1/settings');
 		assert.deepEqual(patch.body, { settings: { sound: false } });
-		assert.deepEqual(await platform.getSettings(), { sound: false });
+		kv['ui.language'] = { choice: 'de-DE' };
+		assert.deepEqual(await platform.getSettings(), { sound: false }, 'shared ui.* keys are not adopted as game settings');
 		assert.deepEqual(await platform.loadBindings({ boost: ['Space'], restart: ['KeyR'] }), { boost: ['KeyB'], restart: ['KeyR'] });
 		assert.ok(platform.inviteLink().endsWith('/game-invite/user-123456789/gid-1'));
 		assert.ok(calls.every((c) => c.auth === 'Bearer ' + sh.token));
@@ -364,9 +399,42 @@ await test('non-GET methods are rejected', async () => {
 	});
 
 	await test('platform: hosted domain without a token offers sign-in', () => {
-		platform.useSdk(SDK.create({ window: makeWin('', 'gid-1.starhermit.com'), fetch: async () => { throw new Error('x'); } }));
+		platform.useSdk(SDK.create({ window: makeWin('', '0b9d6f2e-3c4a-4e5b-9a7c-1d2e3f405162.starhermit.com'), fetch: async () => { throw new Error('x'); } }));
 		platform.readLaunchContext();
 		assert.equal(platform.canSignIn(), true);
+	});
+
+	await test('store: mergeSaves keeps the furthest stage and best scores from both sides, local settings', () => {
+		const m = store.mergeSaves(
+			{ highestStage: 9, sound: false, bestScores: { 'stage-1': 500, 'stage-2': 10 }, dailyBest: { '2026-10-01': 7 } },
+			{ highestStage: 3, sound: true, bestScores: { 'stage-1': 900 }, dailyBest: { '2026-10-02': 4 } });
+		assert.equal(m.highestStage, 9);
+		assert.equal(m.sound, true);
+		assert.deepEqual(m.bestScores, { 'stage-1': 900, 'stage-2': 10 });
+		assert.deepEqual(m.dailyBest, { '2026-10-01': 7, '2026-10-02': 4 });
+	});
+
+	await test('store: a cloud write that lost to another device reloads, merges and saves again', async () => {
+		for (const k of Object.keys(saves)) delete saves[k];
+		const other = SDK.create({ window: makeWin('#game_token=' + jwt), fetch: fetchStub });
+		other.init();
+		const sh = SDK.create({ window: makeWin('#game_token=' + jwt), fetch: fetchStub });
+		platform.useSdk(sh);
+		platform.readLaunchContext();
+		store.resetForTests();
+		store.save({ highestStage: 4, bestScores: { 'stage-1': 300 } });
+		await store.syncFromCloud();                  // empty slot: pushes this device's progress
+		await store.flushCloudPush();
+		await other.loadJSON();                       // the other device loads, plays further and saves
+		assert.ok(await other.writeSave(JSON.stringify({ version: 1, highestStage: 6, bestScores: { 'stage-1': 100, 'stage-5': 800 }, dailyBest: {} })));
+		store.save({ bestScores: { 'stage-1': 450 } }); // this device's write is now stale
+		assert.equal(await store.flushCloudPush(), false);
+		for (let i = 0; i < 50 && (sh.saveConflicted() || store.getSyncState() !== 'synced'); i++) await new Promise((res) => setTimeout(res, 5));
+		const doc = JSON.parse(await sh.loadSave());
+		assert.equal(doc.highestStage, 6);
+		assert.deepEqual(doc.bestScores, { 'stage-1': 450, 'stage-5': 800 });
+		assert.equal(store.load().highestStage, 6);
+		sh.signOut(); other.signOut();
 	});
 }
 

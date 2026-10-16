@@ -16,6 +16,9 @@ function sdk() {
 	return _sh;
 }
 
+/** The SDK instance in use (or null). */
+export function currentSdk() { return sdk(); }
+
 /** Tests inject an SDK instance built with StarHermit.create(). */
 export function useSdk(instance) { _sh = instance || null; }
 
@@ -94,8 +97,20 @@ export async function putCloudSave(doc, keepalive) {
 	return true;
 }
 
-/** Per-player settings KV. */
-export function getSettings() { return isHosted() ? sdk().getSettings() : Promise.resolve({}); }
+/** fn() when a cloud write lost to a newer save made on another device. */
+export function onSaveConflict(fn) { const s = sdk(); return s ? s.on('saveconflict', () => fn()) : () => {}; }
+/** True when the last cloud read failed (as opposed to an empty slot). */
+export function cloudReadFailed() { const s = sdk(); return !!(s && (s.saveLoadFailed() || s.saveConflicted())); }
+
+/** Per-player settings KV (keys owned by shared modules, `ui.*`, are left out). */
+export function getSettings() {
+	if (!isHosted()) return Promise.resolve({});
+	return sdk().getSettings().then((all) => {
+		const own = {};
+		for (const [k, v] of Object.entries(all || {})) if (!k.startsWith('ui.')) own[k] = v;
+		return own;
+	});
+}
 export function patchSettings(obj) { if (isHosted()) sdk().patchSettings(obj); }
 
 /** Resolve key bindings: defaults is { action: [code, …] }. */

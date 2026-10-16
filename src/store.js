@@ -13,7 +13,6 @@ const CLOUD_DEBOUNCE_MS = 2000;
 
 const DEFAULTS = {
 	version: SAVE_VERSION,
-	locale: null,
 	reducedMotion: false,
 	highContrast: false,
 	sound: true,
@@ -41,7 +40,6 @@ function storage() {
 function sanitize(raw) {
 	const out = Object.assign({}, DEFAULTS, { bestScores: {}, dailyBest: {} });
 	if (!raw || typeof raw !== 'object') return out;
-	if (typeof raw.locale === 'string') out.locale = raw.locale;
 	out.reducedMotion = !!raw.reducedMotion;
 	out.highContrast = !!raw.highContrast;
 	out.sound = raw.sound !== false;
@@ -104,6 +102,7 @@ export function save(patch) {
  */
 export async function syncFromCloud() {
 	if (!platform.isHosted()) return false;
+	hookConflicts();
 	try {
 		const remote = await platform.fetchCloudSave();
 		cloudReady = true;
@@ -165,6 +164,43 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
 	document.addEventListener('visibilitychange', () => {
 		if (document.hidden) flushCloudPush(true).catch(() => {});
 	});
+}
+
+/**
+ * Another device saved since this one last loaded the slot (the SDK refused the
+ * conditional write and emitted 'saveconflict'): keep the furthest unlocked
+ * stage and the best score per stage and per day from both sides, and this
+ * device's settings.
+ */
+export function mergeSaves(remote, local) {
+	const a = sanitize(remote), b = sanitize(local);
+	const out = Object.assign({}, b, { highestStage: Math.max(a.highestStage, b.highestStage), bestScores: {}, dailyBest: {} });
+	for (const map of ['bestScores', 'dailyBest']) {
+		for (const k of new Set([...Object.keys(a[map]), ...Object.keys(b[map])])) out[map][k] = Math.max(a[map][k] || 0, b[map][k] || 0);
+	}
+	return out;
+}
+
+async function resolveConflict() {
+	if (!platform.isHosted()) return;
+	setSyncState('saving');
+	let remote = null;
+	try { remote = await platform.fetchCloudSave(); } catch (_) { remote = null; }
+	if (platform.cloudReadFailed()) { setSyncState('error'); return; }
+	writeLocal(mergeSaves(remote, load()));
+	for (const fn of mergeListeners) { try { fn(); } catch (_) {} }
+	if (pushInFlight) await pushInFlight.catch(() => {});
+	await flushCloudPush();
+}
+const mergeListeners = new Set();
+/** fn() after a conflict merge replaced the local document. */
+export function onMerged(fn) { mergeListeners.add(fn); return () => mergeListeners.delete(fn); }
+let conflictHooked = null;
+function hookConflicts() {
+	const sdk = platform.currentSdk();
+	if (!sdk || conflictHooked === sdk) return;
+	conflictHooked = sdk;
+	platform.onSaveConflict(() => { resolveConflict().catch(() => setSyncState('error')); });
 }
 
 /** Records a score; returns true when it beat the stored best. */

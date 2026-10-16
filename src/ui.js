@@ -225,33 +225,48 @@ export function renderStatic(state) {
 	}
 
 	if (els.pauseBtn) {
-		els.pauseBtn.textContent = i18n.t('pause');
-		els.pauseBtn.setAttribute('aria-label', i18n.t('pause'));
+		const label = els.pauseBtn.dataset.paused === 'true' ? i18n.t('resume') : i18n.t('pause');
+		els.pauseBtn.textContent = label;
+		els.pauseBtn.setAttribute('aria-label', label);
 	}
 	if (els.hudProgressLabel) els.hudProgressLabel.textContent = i18n.t('progress');
+	// HUD captions and landmark names in the static markup.
+	const label = (id, key) => { const el = $(id); if (el) el.textContent = i18n.t(key); };
+	label('hud-stage-label', 'stageLabel'); label('hud-score-label', 'score'); label('hud-speed-label', 'speed');
+	const aria = (el, key) => { if (el) el.setAttribute('aria-label', i18n.t(key)); };
+	aria(els.canvas, 'roadView'); aria($('hud'), 'hudStatus'); aria(els.lanes, 'lanesLabel');
+	aria(els.title, 'titleScreen'); aria(els.results, 'results'); aria(els.help, 'help');
+	aria(els.settings, 'settings'); aria(els.paused, 'paused'); aria(els.touch, 'drivingControls');
 	refreshPlayerHud();
 }
 
-function renderSettings(s) {
+/**
+ * Settings is a fixed frame built once: heading, the game's own toggles
+ * (#settings-own), the Graphics host ([data-options-graphics]) whose inner
+ * #gfx-section box is redrawn, and the Back row. game-options.js appends the
+ * shared frame-rate, Language, Sound and Report-a-problem sections to the host
+ * after #gfx-section, so a redraw never tears them down (the Language select
+ * keeps focus while the game re-renders in the new language).
+ */
+function settingsFrame() {
+	let own = document.getElementById('settings-own');
+	if (own && els.settings.contains(own)) return own;
 	els.settings.innerHTML = '';
-	const h = document.createElement('h2'); h.textContent = i18n.t('settings');
-	els.settings.appendChild(h);
+	const h = document.createElement('h2'); h.id = 'settings-heading';
+	own = document.createElement('div'); own.id = 'settings-own';
+	const host = document.createElement('div'); host.id = 'settings-gfx-host'; host.dataset.optionsGraphics = '';
+	const gfxBox = document.createElement('div'); gfxBox.id = 'gfx-section'; gfxBox.className = 'gfx';
+	gfxBox.setAttribute('role', 'group'); gfxBox.setAttribute('aria-labelledby', 'gfx-heading');
+	host.appendChild(gfxBox);
+	const nav = document.createElement('div'); nav.className = 'menu'; nav.id = 'settings-nav';
+	els.settings.append(h, own, host, nav);
+	return own;
+}
 
-	const localeWrap = document.createElement('p');
-	const localeLabel = document.createElement('label');
-	localeLabel.setAttribute('for', 'select-locale');
-	localeLabel.textContent = i18n.t('locale') + ' ';
-	const select = document.createElement('select');
-	select.id = 'select-locale';
-	for (const l of i18n.availableLocales()) {
-		const opt = document.createElement('option');
-		opt.value = l.id; opt.textContent = l.label;
-		if (l.id === i18n.getLocale()) opt.selected = true;
-		select.appendChild(opt);
-	}
-	select.addEventListener('change', () => onAction('set-locale', select.value));
-	localeWrap.append(localeLabel, select);
-	els.settings.appendChild(localeWrap);
+function renderSettings(s) {
+	const own = settingsFrame();
+	document.getElementById('settings-heading').textContent = i18n.t('settings');
+	own.innerHTML = '';
 
 	const toggles = [
 		['toggle-reduced-motion', 'reducedMotion', !!s.reducedMotion],
@@ -262,14 +277,14 @@ function renderSettings(s) {
 		const b = button(`${i18n.t(key)}: ${value ? i18n.t('on') : i18n.t('off')}`, action);
 		b.id = action;
 		b.setAttribute('aria-pressed', String(value));
-		els.settings.appendChild(b);
+		own.appendChild(b);
 	}
 
-	if (s.graphics) renderGraphics(els.settings, s.graphics);
+	if (s.graphics) renderGraphics(document.getElementById('gfx-section'), s.graphics);
 
-	const nav = document.createElement('div'); nav.className = 'menu';
+	const nav = document.getElementById('settings-nav');
+	nav.innerHTML = '';
 	nav.appendChild(button(i18n.t('back'), 'close-overlay', 'btn btn-primary'));
-	els.settings.appendChild(nav);
 }
 
 function tierLabel(tier) { return i18n.t('gfxTier_' + tier); }
@@ -299,14 +314,11 @@ function gfxSelect(options, selected, onChange) {
 }
 
 /** Graphics section: preset, render scale, per-effect overrides, adaptive, FPS, summary. */
-function renderGraphics(parent, g) {
+function renderGraphics(sec, g) {
 	const saved = g.saved || {};
 	const info = g.info || {};
 	const resolved = info.resolved || {};
-	const sec = document.createElement('section');
-	sec.className = 'gfx';
-	sec.id = 'gfx-section';
-	sec.setAttribute('aria-labelledby', 'gfx-heading');
+	sec.innerHTML = '';
 	const h = document.createElement('h3'); h.id = 'gfx-heading'; h.textContent = i18n.t('graphics');
 	sec.appendChild(h);
 
@@ -365,7 +377,6 @@ function renderGraphics(parent, g) {
 		note.textContent = i18n.t('gfxPostFailed');
 		sec.appendChild(note);
 	}
-	parent.appendChild(sec);
 }
 
 /** Rebuild the settings panel, keeping keyboard focus and scroll position. */
@@ -410,6 +421,7 @@ export function setHudVisible(visible) {
 export function setPauseLabel(paused) {
 	if (!els.pauseBtn) return;
 	const label = paused ? i18n.t('resume') : i18n.t('pause');
+	els.pauseBtn.dataset.paused = String(!!paused);
 	els.pauseBtn.textContent = label;
 	els.pauseBtn.setAttribute('aria-label', label);
 }
@@ -451,6 +463,13 @@ export function announce(text) {
 }
 
 export function showResults(view) {
+	if (!els.results) return;
+	renderResults(view);
+	showScreen('results');
+}
+
+/** Results content only (also used to re-render it after a language change). */
+export function renderResults(view) {
 	if (!els.results) return;
 	els.results.innerHTML = '';
 	const h = document.createElement('h2');
@@ -511,8 +530,6 @@ export function showResults(view) {
 	nav.appendChild(button(i18n.t('retry'), 'restart', view.finished && view.hasNextStage ? 'btn' : 'btn btn-primary'));
 	nav.appendChild(button(i18n.t('quit'), 'quit'));
 	els.results.appendChild(nav);
-
-	showScreen('results');
 }
 
 /** Results screen leaderboard line (signed in only). */

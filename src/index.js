@@ -101,26 +101,45 @@ function endStage() {
 	if (state.finished && !isDaily) store.unlockStage(Math.min(getStageCount(), currentStage.index + 1));
 	settings = store.load();
 	phase = PHASE.RESULTS;
-	ui.showResults({
+	lastResults = {
 		finished: state.finished,
 		breakdown,
 		elapsed: state.elapsed,
 		best: store.bestScore(key, isDaily),
 		newBest,
 		hasNextStage: !isDaily && currentStage.index < getStageCount(),
-		leaderboard: platform.isHosted() ? i18n.t('sh.lbPosting') : null,
-	});
+		lb: platform.isHosted() ? { pending: true } : null,
+	};
+	ui.showResults(resultsView());
 	if (platform.isHosted()) {
-		const run = current;
+		const run = current, shown = lastResults;
 		platform.submitScore(breakdown.total).then((r) => {
-			if (current !== run || phase !== PHASE.RESULTS) return;
-			ui.setLeaderboardLine(!r.posted ? i18n.t('sh.lbNotPosted')
-				: r.rank ? i18n.t('sh.lbRank', { rank: r.rank }) : i18n.t('sh.lbPosted'));
+			if (current !== run || phase !== PHASE.RESULTS || lastResults !== shown) return;
+			shown.lb = r;
+			ui.setLeaderboardLine(lbText(r));
 		});
 	}
 	ui.announce(state.finished
 		? i18n.t('announceFinish', { s: state.elapsed.toFixed(1) })
 		: i18n.t('announceCrash', { m: Math.round(state.position) }));
+}
+
+let lastResults = null;
+function lbText(r) {
+	if (!r) return null;
+	if (r.pending) return i18n.t('sh.lbPosting');
+	return !r.posted ? i18n.t('sh.lbNotPosted') : r.rank ? i18n.t('sh.lbRank', { rank: r.rank }) : i18n.t('sh.lbPosted');
+}
+function resultsView() { return Object.assign({}, lastResults, { leaderboard: lbText(lastResults.lb) }); }
+
+/** Language changed: re-render menus, HUD and results in place; the run keeps going. */
+function relocalize() {
+	if (!settings) return;
+	ui.renderStatic(settingsView());
+	if (lastResults && phase === PHASE.RESULTS) ui.renderResults(resultsView());
+	const note = document.getElementById('no-webgl');
+	if (note) note.textContent = i18n.t('noWebgl');
+	updateHud(true);
 }
 
 function updateHud(force) {
@@ -215,7 +234,7 @@ function goTitle() {
 }
 
 // Preferences mirrored to the StarHermit per-player settings KV (debounced).
-const KV_KEYS = ['locale', 'reducedMotion', 'highContrast', 'sound', 'graphics'];
+const KV_KEYS = ['reducedMotion', 'highContrast', 'sound', 'graphics'];
 let kvTimer = 0;
 function mirrorSettings() {
 	if (!platform.isHosted()) return;
@@ -229,7 +248,6 @@ function mirrorSettings() {
 
 function applySettings() {
 	store.save({
-		locale: settings.locale,
 		reducedMotion: settings.reducedMotion,
 		highContrast: settings.highContrast,
 		sound: settings.sound,
@@ -275,12 +293,6 @@ function handleAction(action, value) {
 			if (currentStage && currentStage.index < getStageCount()) startStage(getStage(currentStage.index + 1), false);
 			return;
 		case 'quit': goTitle(); return;
-		case 'set-locale':
-			settings.locale = i18n.setLocale(value);
-			applySettings();
-			ui.renderStatic(settingsView());
-			ui.showScreen(phase === PHASE.PAUSED ? 'paused' : 'settings');
-			return;
 		case 'toggle-reduced-motion': settings.reducedMotion = !settings.reducedMotion; applySettings(); return;
 		case 'toggle-high-contrast': settings.highContrast = !settings.highContrast; applySettings(); return;
 		case 'toggle-sound': settings.sound = !settings.sound; applySettings(); return;
@@ -376,7 +388,8 @@ function showCompatibilityMessage() {
 	if (!el) return;
 	const p = document.createElement('p');
 	p.className = 'tagline';
-	p.textContent = 'This game needs WebGL. Your progress and settings are safe — enable WebGL and reload.';
+	p.id = 'no-webgl';
+	p.textContent = i18n.t('noWebgl');
 	el.appendChild(p);
 }
 
@@ -408,7 +421,6 @@ export function boot() {
 			for (const k of KV_KEYS) if (remote && remote[k] !== undefined) patch[k] = remote[k];
 			if (!Object.keys(patch).length || !settings) return;
 			Object.assign(settings, patch);
-			if (patch.locale) settings.locale = i18n.setLocale(patch.locale);
 			if (patch.graphics) { try { render.setGraphics(settings.graphics); } catch (_) { /* no WebGL */ } }
 			store.save(patch);
 			applySettings();
@@ -418,7 +430,6 @@ export function boot() {
 		store.syncFromCloud().then((replaced) => {
 			if (!replaced) return;
 			settings = store.load();
-			if (!settings.locale) settings.locale = i18n.getLocale();
 			if (prefersReducedMotion() && !settings.reducedMotion) settings.reducedMotion = true;
 			render.setGraphics(settings.graphics);
 			applySettings();
@@ -427,9 +438,16 @@ export function boot() {
 	}
 	ui.setSyncStatus(store.getSyncState());
 	store.onSyncChange(ui.setSyncStatus);
+	// A cloud-save conflict merge replaced the local document: pick it up.
+	store.onMerged(() => {
+		settings = store.load();
+		if (phase === PHASE.TITLE) ui.renderStatic(settingsView());
+	});
 	settings = store.load();
-	i18n.setLocale(i18n.negotiateLocale(settings.locale, navigator.languages || [navigator.language]));
-	if (!settings.locale) settings.locale = i18n.getLocale();
+	// The game language follows Settings › Language (sh-language.js); a change
+	// re-renders every screen in place without touching the run.
+	i18n.initLanguage();
+	i18n.onLanguage(relocalize);
 	if (prefersReducedMotion() && !store.load().reducedMotion) settings.reducedMotion = true;
 
 	ui.init(handleAction, settingsView());

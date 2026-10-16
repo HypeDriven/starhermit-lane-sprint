@@ -58,7 +58,6 @@ const STRINGS = {
 		left: 'Left',
 		right: 'Right',
 		boost: 'Boost',
-		locale: 'Language',
 		reducedMotion: 'Reduced motion',
 		highContrast: 'High contrast',
 		sound: 'Sound effects',
@@ -126,7 +125,6 @@ const OVERRIDES = {
 		tagline: 'Switch lanes, time your boost, beat the road.',
 		helpBody: 'Steer between three lanes to avoid traffic. Collect boost pads or trigger your own boost on a clear stretch. Reach the finishing line without hitting a car.',
 		breakdownDistance: 'Distance',
-		locale: 'Language',
 		reducedMotion: 'Reduced motion',
 		announceCrash: 'Crashed at {m} metres.',
 		player: 'Player',
@@ -219,7 +217,6 @@ const OVERRIDES = {
 		left: 'Izquierda',
 		right: 'Derecha',
 		boost: 'Impulso',
-		locale: 'Idioma',
 		reducedMotion: 'Movimiento reducido',
 		highContrast: 'Alto contraste',
 		sound: 'Efectos de sonido',
@@ -321,7 +318,6 @@ const OVERRIDES = {
 		left: 'Izquierda',
 		right: 'Derecha',
 		boost: 'Turbo',
-		locale: 'Idioma',
 		reducedMotion: 'Movimiento reducido',
 		highContrast: 'Alto contraste',
 		sound: 'Efectos de sonido',
@@ -423,7 +419,6 @@ const OVERRIDES = {
 		left: 'Links',
 		right: 'Rechts',
 		boost: 'Boost',
-		locale: 'Sprache',
 		reducedMotion: 'Reduzierte Bewegung',
 		highContrast: 'Hoher Kontrast',
 		sound: 'Soundeffekte',
@@ -525,7 +520,6 @@ const OVERRIDES = {
 		left: 'Gauche',
 		right: 'Droite',
 		boost: 'Boost',
-		locale: 'Langue',
 		reducedMotion: 'Animations réduites',
 		highContrast: 'Contraste élevé',
 		sound: 'Effets sonores',
@@ -627,7 +621,6 @@ const OVERRIDES = {
 		left: 'Gauche',
 		right: 'Droite',
 		boost: 'Boost',
-		locale: 'Langue',
 		reducedMotion: 'Animations réduites',
 		highContrast: 'Contraste élevé',
 		sound: 'Effets sonores',
@@ -729,7 +722,6 @@ const OVERRIDES = {
 		left: 'Esquerda',
 		right: 'Direita',
 		boost: 'Impulso',
-		locale: 'Idioma',
 		reducedMotion: 'Movimento reduzido',
 		highContrast: 'Alto contraste',
 		sound: 'Efeitos sonoros',
@@ -831,7 +823,6 @@ const OVERRIDES = {
 		left: 'Sinistra',
 		right: 'Destra',
 		boost: 'Boost',
-		locale: 'Lingua',
 		reducedMotion: 'Movimento ridotto',
 		highContrast: 'Contrasto elevato',
 		sound: 'Effetti sonori',
@@ -892,11 +883,60 @@ const OVERRIDES = {
 	},
 };
 
+// Labels added with the shared Language setting (HUD captions, landmark names, no-WebGL note).
+const ADDED = {
+	'en-US': { stageLabel: 'Stage', roadView: 'Lane Sprint road view', hudStatus: 'Status', lanesLabel: 'Lanes', titleScreen: 'Title', drivingControls: 'Driving controls',
+		noWebgl: 'This game needs WebGL. Your progress and settings are safe — enable WebGL and reload.' },
+	'es-419': { stageLabel: 'Etapa', roadView: 'Vista de la carretera de Lane Sprint', hudStatus: 'Estado', lanesLabel: 'Carriles', titleScreen: 'Inicio', drivingControls: 'Controles de manejo',
+		noWebgl: 'Este juego necesita WebGL. Tu progreso y tu configuración están a salvo: activa WebGL y vuelve a cargar.' },
+	'es-ES': { stageLabel: 'Etapa', roadView: 'Vista de la carretera de Lane Sprint', hudStatus: 'Estado', lanesLabel: 'Carriles', titleScreen: 'Inicio', drivingControls: 'Controles de conducción',
+		noWebgl: 'Este juego necesita WebGL. Tu progreso y tus ajustes están a salvo: activa WebGL y vuelve a cargar.' },
+	'de-DE': { stageLabel: 'Etappe', roadView: 'Straßenansicht von Lane Sprint', hudStatus: 'Status', lanesLabel: 'Fahrspuren', titleScreen: 'Titelbildschirm', drivingControls: 'Fahrsteuerung',
+		noWebgl: 'Dieses Spiel benötigt WebGL. Fortschritt und Einstellungen sind sicher – aktiviere WebGL und lade die Seite neu.' },
+	'fr-FR': { stageLabel: 'Étape', roadView: 'Vue de la route de Lane Sprint', hudStatus: 'État', lanesLabel: 'Voies', titleScreen: 'Accueil', drivingControls: 'Commandes de conduite',
+		noWebgl: 'Ce jeu nécessite WebGL. Votre progression et vos paramètres sont en sécurité — activez WebGL et rechargez la page.' },
+	'fr-CA': { stageLabel: 'Étape', roadView: 'Vue de la route de Lane Sprint', hudStatus: 'État', lanesLabel: 'Voies', titleScreen: 'Accueil', drivingControls: 'Commandes de conduite',
+		noWebgl: 'Ce jeu nécessite WebGL. Votre progression et vos paramètres sont en sécurité — activez WebGL et rechargez la page.' },
+	'pt-BR': { stageLabel: 'Etapa', roadView: 'Visão da estrada de Lane Sprint', hudStatus: 'Status', lanesLabel: 'Faixas', titleScreen: 'Início', drivingControls: 'Controles de direção',
+		noWebgl: 'Este jogo precisa de WebGL. Seu progresso e suas configurações estão seguros — ative o WebGL e recarregue.' },
+	'it-IT': { stageLabel: 'Tappa', roadView: 'Vista della strada di Lane Sprint', hudStatus: 'Stato', lanesLabel: 'Corsie', titleScreen: 'Inizio', drivingControls: 'Comandi di guida',
+		noWebgl: 'Questo gioco richiede WebGL. Progressi e impostazioni sono al sicuro — attiva WebGL e ricarica.' },
+};
+Object.assign(STRINGS['en-US'], ADDED['en-US']);
+for (const id of Object.keys(OVERRIDES)) if (ADDED[id]) Object.assign(OVERRIDES[id], ADDED[id]);
+
+/** Locale tables as authored (before the en-US fallback merge), for the coverage test. */
+export const AUTHORED = Object.fromEntries(Object.entries(OVERRIDES).map(([id, o]) => [id, Object.assign({}, o)]));
+AUTHORED['en-US'] = Object.assign({}, STRINGS['en-US']);
+
 for (const id of Object.keys(OVERRIDES)) {
 	STRINGS[id] = Object.assign({}, STRINGS['en-US'], OVERRIDES[id]);
 }
 
 let current = 'en-US';
+const listeners = new Set();
+
+/** fn(locale) after every language change (live re-rendering). */
+export function onLanguage(fn) { listeners.add(fn); return () => listeners.delete(fn); }
+
+/**
+ * Wire the StarHermit language preference (sh-language.js): the game's
+ * Language setting (`ui.language`), Automatic → account preferredLanguage →
+ * navigator.languages → en-US. Every change goes through setLocale and the
+ * onLanguage listeners. Returns the instance (or null without sh-language.js).
+ */
+export function initLanguage() {
+	const SHL = typeof globalThis !== 'undefined' ? globalThis.StarHermitLanguage : null;
+	if (!SHL) { setLocale(negotiateLocale(null, (typeof navigator !== 'undefined' && navigator.languages) || [])); return null; }
+	return SHL.create({
+		game: 'lane-sprint', supported: LOCALES.map(l => l.id),
+		apply: (locale) => {
+			const prev = current;
+			setLocale(locale);
+			if (prev !== current) for (const fn of [...listeners]) { try { fn(current); } catch (e) { console.error(e); } }
+		},
+	});
+}
 
 export function availableLocales() { return LOCALES.slice(); }
 

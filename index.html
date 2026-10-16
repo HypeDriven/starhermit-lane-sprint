@@ -10,8 +10,9 @@
 <script src="game-options.js" data-game="lane-sprint"></script>
 <script src="ui-scale.js"></script>
 <script type="importmap">{"imports":{"three":"./vendor/three.module.min.js?v=2","three/addons/":"./vendor/three/addons/"}}</script>
+<script src="./sh-language.js"></script>
 <script src="./starhermit-sdk.js"></script>
-<script type="module" src="./src/index.js?v=4"></script>
+<script type="module" src="./src/index.js?v=5"></script>
 <script src="browser-guard.js"></script>
 </head>
 <body>
@@ -19,9 +20,9 @@
 
 <header id="hud" aria-label="Status">
   <div class="hud-row">
-    <p class="hud-item"><span class="hud-label">Stage</span><span id="hud-stage">—</span></p>
-    <p class="hud-item"><span class="hud-label">Score</span><span id="hud-score">0</span></p>
-    <p class="hud-item"><span class="hud-label">Speed</span><span id="hud-speed">0 km/h</span></p>
+    <p class="hud-item"><span class="hud-label" id="hud-stage-label">Stage</span><span id="hud-stage">—</span></p>
+    <p class="hud-item"><span class="hud-label" id="hud-score-label">Score</span><span id="hud-score">0</span></p>
+    <p class="hud-item"><span class="hud-label" id="hud-speed-label">Speed</span><span id="hud-speed">0 km/h</span></p>
     <p class="hud-item"><span id="hud-boost" data-state="ready">—</span></p>
     <p class="hud-item hud-player-item">
       <span class="hud-label" id="hud-player-label">Player</span>

@@ -2,7 +2,7 @@
  * Lane Sprint — end-to-end browser playthrough (dev only, not shipped).
  *
  * Drives the real shipped server and the real visible UI on desktop and mobile:
- *   title → help → settings (locale + accessibility toggles) → play → lane and
+ *   title → help → settings (language + accessibility toggles) → play → lane and
  *   boost input → pause/resume → restart → crash or finish → results → quit.
  * Fails loudly on any console error, page error or failed request.
  *
@@ -78,7 +78,7 @@ async function runPass(browser, label, contextOptions, baseUrl) {
 		await page.waitForSelector('#title-screen', { state: 'visible' });
 	});
 
-	await step(`${label}: settings toggles and locale switch apply`, async () => {
+	await step(`${label}: settings toggles and the Language setting apply`, async () => {
 		await page.click('[data-action="open-settings"]');
 		await page.waitForSelector('#settings-screen', { state: 'visible' });
 		await page.click('#toggle-high-contrast');
@@ -86,12 +86,18 @@ async function runPass(browser, label, contextOptions, baseUrl) {
 			throw new Error('high contrast toggle did not apply');
 		}
 		await page.click('#toggle-high-contrast');
-		await page.selectOption('#select-locale', 'fr-FR');
+		if (await page.locator('#select-locale').count()) throw new Error('the old game language select is still shown');
+		const choice = page.locator('[data-game-language="choice"]');
+		if ((await page.locator('[data-game-language="choice"]').count()) !== 1) throw new Error('expected exactly one Language select');
+		await choice.scrollIntoViewIfNeeded();
+		await choice.selectOption('fr-FR');
 		await page.waitForFunction(() => document.documentElement.lang === 'fr-FR');
 		const playLabel = await page.textContent('[data-action="play"]');
 		if (!/tape/i.test(playLabel)) throw new Error(`locale did not localize the menu: ${playLabel}`);
+		if (await page.textContent('#settings-heading') !== 'Réglages') throw new Error('settings heading not re-rendered');
+		if (!/sur cet appareil/.test(await page.textContent('[data-game-language="status"]'))) throw new Error('standalone choice not saved on the device');
 		await shot('settings-fr');
-		await page.selectOption('#select-locale', 'en-US');
+		await choice.selectOption('auto');
 		await page.waitForFunction(() => document.documentElement.lang === 'en-US');
 		await page.click('#settings-screen [data-action="close-overlay"]');
 		await page.waitForSelector('#title-screen', { state: 'visible' });
@@ -310,6 +316,83 @@ async function runPass(browser, label, contextOptions, baseUrl) {
 		if (!calls.some((c) => c.includes('/cloud-saves/game%3Agid-1'))) throw new Error('no cloud-save load: ' + calls.join(', '));
 		await shot('signed-in');
 		// Let the debounced cloud save land on the stub before the context closes.
+		await page.waitForTimeout(2600);
+		await page.waitForLoadState('networkidle');
+	});
+
+	await step(`${label}: Language — Automatic follows the StarHermit preferred language (fr-CA); Deutsch re-renders and saves ui.language; report a problem`, async () => {
+		await page.unroute(/\/api\/v1\//);
+		const calls = await stubStarHermit(page, { preferredLanguage: 'fr-CA' });
+		await page.goto('about:blank');
+		await page.goto(baseUrl + 'index.html#game_token=' + launchToken(), { waitUntil: 'load', timeout: 30000 });
+		await page.waitForFunction(() => document.documentElement.lang === 'fr-CA', null, { timeout: 15000 });
+		if ((await page.textContent('[data-action="daily"]')) !== 'Défi du jour') throw new Error('title not in fr-CA: ' + await page.textContent('[data-action="daily"]'));
+		await page.click('[data-action="open-settings"]');
+		const choice = page.locator('[data-game-language="choice"]');
+		await choice.scrollIntoViewIfNeeded();
+		const auto = await choice.locator('option').first().textContent();
+		if (auto !== 'Automatique — Français (Canada)') throw new Error('Automatic label: ' + auto);
+		await page.evaluate(() => { document.querySelector('[data-game-language="choice"]').__kept = true; });
+		await choice.selectOption('de-DE');
+		await page.waitForFunction(() => document.documentElement.lang === 'de-DE');
+		await page.waitForFunction(() => /Im Konto gespeichert/.test(document.querySelector('[data-game-language="status"]').textContent), null, { timeout: 5000 });
+		if (calls.settings['ui.language']?.choice !== 'de-DE') throw new Error('ui.language not saved: ' + JSON.stringify(calls.settings));
+		const de = await page.evaluate(() => ({
+			h: document.getElementById('settings-heading').textContent,
+			gfx: document.getElementById('gfx-heading').textContent,
+			back: document.querySelector('#settings-nav button').textContent,
+			kept: document.querySelector('[data-game-language="choice"]').__kept === true,
+		}));
+		if (de.h !== 'Einstellungen' || de.gfx !== 'Grafik' || de.back !== 'Zurück' || !de.kept) throw new Error('settings not re-rendered in place: ' + JSON.stringify(de));
+		await page.locator('[data-game-report="title"]').scrollIntoViewIfNeeded();
+		await page.fill('[data-game-report="title"]', 'Language test report');
+		await page.click('[data-game-report="send"]');
+		await page.waitForFunction(() => /Danke/.test(document.querySelector('[data-game-report="status"]').textContent), null, { timeout: 5000 });
+		if (!calls.reports?.[0] || calls.reports[0].kind !== 'bug') throw new Error('report not posted');
+		if (await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1)) throw new Error('German settings overflow horizontally');
+		await shot('language-de');
+		await page.click('#settings-screen [data-action="close-overlay"]');
+		await page.waitForSelector('#title-screen', { state: 'visible' });
+	});
+
+	await step(`${label}: Language — switching mid-run re-renders HUD, touch controls and pause menu and keeps the run`, async () => {
+		await page.click('[data-action="practice"]');
+		await page.waitForFunction(() => window.__laneSprint.getState().position > 10, null, { timeout: 20000 });
+		await page.click('#btn-pause');
+		await page.waitForSelector('#pause-screen', { state: 'visible' });
+		const before = await state();
+		await page.click('#pause-screen [data-action="open-settings"]');
+		const choice = page.locator('[data-game-language="choice"]');
+		await choice.scrollIntoViewIfNeeded();
+		await choice.selectOption('it-IT');
+		await page.waitForFunction(() => document.documentElement.lang === 'it-IT');
+		await page.click('#settings-screen [data-action="close-overlay"]');
+		await page.waitForSelector('#pause-screen', { state: 'visible' });
+		const it = await page.evaluate(() => ({
+			pauseH: document.querySelector('#pause-screen h2').textContent,
+			stage: document.getElementById('hud-stage-label').textContent,
+			stageValue: document.getElementById('hud-stage').textContent,
+			speed: document.getElementById('hud-speed-label').textContent,
+			left: document.querySelector('#touch-controls [data-action="lane_left"]').textContent,
+			canvas: document.getElementById('game-canvas').getAttribute('aria-label'),
+		}));
+		if (it.pauseH !== 'In pausa' || it.stage !== 'Tappa' || it.stageValue !== 'Tappa 1' || it.speed !== 'Velocità' || !/Sinistra/.test(it.left) || it.canvas !== 'Vista della strada di Lane Sprint') {
+			throw new Error('run not re-rendered: ' + JSON.stringify(it));
+		}
+		const after = await state();
+		if (after.tick !== before.tick || after.position !== before.position) throw new Error('the paused run changed during the language switch');
+		await page.click('[data-action="resume"]');
+		await page.waitForFunction((t) => window.__laneSprint.getPhase() === 'play' && window.__laneSprint.getState().tick > t, before.tick, { timeout: 5000 });
+		if ((await page.textContent('#btn-pause')) !== 'Pausa') throw new Error('pause button not Italian');
+		await shot('language-it-play');
+		await page.click('#btn-pause');
+		await page.click('#pause-screen [data-action="quit"]');
+		await page.waitForSelector('#title-screen', { state: 'visible' });
+		await page.click('[data-action="open-settings"]');
+		await choice.scrollIntoViewIfNeeded();
+		await choice.selectOption('auto');
+		await page.waitForFunction(() => document.documentElement.lang === 'fr-CA');
+		await page.click('#settings-screen [data-action="close-overlay"]');
 		await page.waitForTimeout(2600);
 		await page.waitForLoadState('networkidle');
 	});
