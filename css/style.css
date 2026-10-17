@@ -146,11 +146,13 @@ html, body {
   align-items: flex-start;
   justify-content: center;
   padding: calc(16px + var(--safe-top)) 16px calc(16px + var(--safe-bottom));
-  background: rgba(3, 10, 19, 0.72);
-  backdrop-filter: blur(4px);
+  background: rgba(3, 10, 19, 0.84);
   z-index: 4;
   overflow-y: auto;
 }
+/* Frosted glass over the live 3D view only where the graphics budget allows it (High/Ultra): a
+   backdrop blur is re-composited every frame the scene moves. */
+body.gfx-hud-blur #overlay { background: rgba(3, 10, 19, 0.72); backdrop-filter: blur(4px); }
 #overlay[hidden] { display: none; }
 
 .screen {

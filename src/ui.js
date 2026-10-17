@@ -368,7 +368,7 @@ function renderGraphics(sec, g) {
 	const summary = document.createElement('p');
 	summary.id = 'gfx-summary';
 	summary.className = 'gfx-summary';
-	summary.textContent = `${info.gpu || ''} · ${info.summary || ''}`;
+	summary.textContent = `${info.gpu || ''} · ${i18n.t('gfxLevel', { level: info.level ?? 0 })} · ${info.summary || ''}`;
 	sec.appendChild(summary);
 	if (info.postFailed) {
 		const note = document.createElement('p');

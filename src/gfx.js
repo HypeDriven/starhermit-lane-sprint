@@ -1,5 +1,5 @@
-// Lane Sprint — graphics quality model: presets, per-category overrides, GPU
-// detection and a cost summary. Pure (no three.js, no DOM) so the settings
+// Lane Sprint — graphics quality model: presets, per-category overrides,
+// hardware-level detection, per-preset budgets and a cost summary. Pure (no three.js, no DOM) so the settings
 // panel, the renderer and the unit tests agree on what a setting means.
 'use strict';
 
@@ -28,14 +28,62 @@ const TABLE = {
 
 export const SHADOW_MAP = { off: 0, low: 1024, medium: 2048, high: 4096 };
 
-/** Best preset for this GPU, from the unmasked renderer string; touch devices cap at Balanced. */
-export function detectPreset(gpu, mobile) {
-	const g = String(gpu || '').toLowerCase();
-	let p = 'balanced';
-	if (/swiftshader|llvmpipe|softpipe|software|basic render|microsoft basic/.test(g)) p = 'low';
-	else if (/nvidia|geforce|rtx|gtx|quadro|radeon rx|radeon pro|amd radeon(?!.*graphics)|apple m\d/.test(g)) p = 'high';
-	if (mobile && PRESETS.indexOf(p) > PRESETS.indexOf('balanced')) p = 'balanced';
-	return p;
+// StarHermit hardware level (0–20, src/gpu-level.js → window.StarHermitGpu) at which Auto starts choosing
+// each preset. 0 = Galaxy S20 / Intel UHD or weaker, 20 = RTX 5090; phones, tablets and ≤ 4 GB machines
+// are capped at level 9 (Balanced); software renderers are level 0 (Low).
+export const LEVELS = { low: 0, balanced: 4, high: 10, ultra: 17 };
+
+/*
+ * Per-preset asset and effect budgets, each tuned to hold 60 FPS on the weakest GPU Auto gives the preset
+ * (Low: level 0 phones / Intel UHD; Balanced: level 4 Iris Xe; High: level 10 GTX 1070; Ultra: level 17
+ * RTX 4080; measured with tests/gfx-bench.mjs). Gameplay is identical on every preset.
+ *   material  car bodies and scenery: 'lambert' (Low) | 'standard' (Balanced) | 'physical' (clearcoated
+ *             bodies with Reflections on; High/Ultra)
+ *   road      asphalt texture width in px (height 2×); ground: verge texture size (Scenery detail on)
+ *   segments  geometry LOD: multiplies wheel/hub, sky dome, tree and pole segments and rounded-body bevels
+ *   trees     roadside tree density (fraction of the full planting)
+ *   clouds    sky cloud noise octaves (Sky animated / Scenery detail on)
+ *   sparks    multiplies boost exhaust points and speed lines, then scaled by the hardware level within
+ *             the preset (≤ 2×)
+ *   hudBlur   backdrop blur behind menus and overlays (re-composited every frame over the live 3D view);
+ *             off below High, where the overlay uses a more opaque backing
+ *   bloomRes / aoRes  bloom and GTAO resolution as a fraction of the frame
+ */
+export const BUDGETS = {
+	low: { material: 'lambert', road: 128, ground: 128, segments: 0.5, trees: 0.5, clouds: 2, sparks: 0.5, hudBlur: false, bloomRes: 0.5, aoRes: 0.5 },
+	balanced: { material: 'standard', road: 256, ground: 256, segments: 0.75, trees: 0.75, clouds: 3, sparks: 0.75, hudBlur: false, bloomRes: 0.5, aoRes: 0.5 },
+	high: { material: 'physical', road: 256, ground: 256, segments: 1, trees: 1, clouds: 4, sparks: 1, hudBlur: true, bloomRes: 0.5, aoRes: 0.5 },
+	ultra: { material: 'physical', road: 512, ground: 512, segments: 1.5, trees: 1, clouds: 5, sparks: 1.5, hudBlur: true, bloomRes: 1, aoRes: 1 },
+};
+
+const gpuApi = () => globalThis.StarHermitGpu;
+
+/** Hardware level 0–20 for an unmasked renderer string plus StarHermitGpu.detectSystem() facts. */
+export function detectLevel(gpu, system = {}) {
+	const G = gpuApi();
+	if (!G) return LEVELS.balanced;
+	return G.detectLevel({ webgl: true, webgl2: true, ...system, gpu: String(gpu || '') });
+}
+
+/** Auto preset for a hardware level: Low 0, Balanced 4, High 10, Ultra 17. */
+export function presetForLevel(level) {
+	const G = gpuApi();
+	if (G) return G.presetForLevel(level, LEVELS);
+	return PRESETS.filter((p) => LEVELS[p] <= level).pop() || 'low';
+}
+
+/** Best preset for this GPU; phones and tablets are capped at Balanced by the hardware level. */
+export function detectPreset(gpu, system = {}) {
+	return presetForLevel(detectLevel(gpu, system));
+}
+
+/** A preset's concrete budget for a hardware level (sparks scale within the preset, ≤ 2×). */
+export function budget(preset, level) {
+	const b = { ...(BUDGETS[preset] || BUDGETS.balanced) };
+	const G = gpuApi(), floor = LEVELS[preset] ?? 0;
+	const k = G ? Math.min(2, G.scaleBudget(1, Number.isFinite(level) ? level : floor, floor)) : 1;
+	b.sparks = Math.round(b.sparks * k * 100) / 100;
+	return b;
 }
 
 function clamp(v, a, b) { return Math.min(b, Math.max(a, v)); }
@@ -58,7 +106,7 @@ export function sanitize(raw) {
  * Resolve saved settings into concrete tiers.
  * `saved`: { preset: 'auto'|preset, render_scale, adaptive, show_fps, <category>: tier }.
  */
-export function resolve(saved, detected) {
+export function resolve(saved, detected, level) {
 	const s = saved || {};
 	const auto = !PRESETS.includes(s.preset);
 	const preset = auto ? (PRESETS.includes(detected) ? detected : 'balanced') : s.preset;
@@ -71,6 +119,8 @@ export function resolve(saved, detected) {
 	for (const [cat, tiers] of Object.entries(CATEGORIES)) {
 		out[cat] = tiers.includes(s[cat]) ? s[cat] : row[cat];
 	}
+	out.level = Number.isFinite(level) ? level : LEVELS[preset];
+	out.budget = budget(preset, out.level);
 	out.adaptive = s.adaptive !== false;
 	out.showFps = !!s.show_fps;
 	// The composer runs only when something needs it; otherwise the canvas MSAA is used.

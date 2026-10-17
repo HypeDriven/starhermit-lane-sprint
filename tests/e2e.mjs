@@ -122,6 +122,9 @@ async function runPass(browser, label, contextOptions, baseUrl) {
 		await page.waitForSelector('#gfx-section', { state: 'visible' });
 		const autoLabel = await page.textContent('#gfx-preset option[value="auto"]');
 		if (!/Auto \(detected: /.test(autoLabel)) throw new Error(`auto option label: ${autoLabel}`);
+		if (!/Auto \(detected: Low\)/.test(autoLabel)) throw new Error(`Auto on a software GPU should detect Low: ${autoLabel}`);
+		// The summary names the StarHermit hardware level (software GPU = level 0).
+		if (!/Level 0/.test(await page.textContent('#gfx-summary'))) throw new Error('summary lacks the hardware level: ' + (await page.textContent('#gfx-summary')));
 		await page.selectOption('#gfx-preset', 'low');
 		await page.waitForFunction(() => document.body.dataset.gfxPreset === 'low');
 		if ((await gfxPreset()).join() !== 'low,low') throw new Error('low preset not applied to canvas');

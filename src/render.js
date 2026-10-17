@@ -16,7 +16,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { LANE_COUNT, LANE_WIDTH, CAR_LENGTH } from './rules.js';
 import { getTheme } from './content.js';
-import { detectPreset, resolve, describe, SHADOW_MAP } from './gfx.js';
+import { detectLevel, presetForLevel, resolve, describe, SHADOW_MAP } from './gfx.js';
 
 // The chase camera looks toward +z, so screen-left is world +x: lane 0 (the
 // left lane in the HUD) sits at +x.
@@ -27,8 +27,10 @@ const SEGMENT_LENGTH = 20;      // road/marking repeat length in metres
 const VIEW_AHEAD = 170;         // metres of track kept resident
 const VIEW_BEHIND = 40;
 const STRIP_LENGTH = VIEW_AHEAD + VIEW_BEHIND + SEGMENT_LENGTH;
-const SPEED_LINE_COUNT = 28;
+const SPEED_LINE_COUNT = 28;   // speed lines and exhaust points at budget sparks 1 (pools sized for 3×)
 const EXHAUST_COUNT = 64;
+const SPEED_LINE_MAX = SPEED_LINE_COUNT * 3;
+const EXHAUST_MAX = EXHAUST_COUNT * 3;
 const TREE_SPACING = 10;
 const TREE_SLOTS = Math.ceil(STRIP_LENGTH / TREE_SPACING) + 1;
 const LAMP_SPACING = 40;
@@ -87,6 +89,8 @@ let clock = 0;                  // ambient-animation time; frozen under reduced 
 let canvasEl = null;
 let gpu = '';
 let detected = 'balanced';
+let level = 4;
+let exhaustCount = EXHAUST_COUNT;
 let saved = {};
 let q = resolve({}, 'balanced');
 let composer = null;
@@ -103,6 +107,28 @@ let lastNow = 0;
 const textures = {};
 
 function track(obj) { disposables.push(obj); return obj; }
+function untrack(obj) { if (!obj) return; obj.dispose(); const i = disposables.indexOf(obj); if (i >= 0) disposables.splice(i, 1); }
+
+// Geometry LOD: segment counts scaled by the preset budget (`segments`), never below `min`.
+function seg(n, min = 3) { return Math.max(min, Math.round(n * (q.budget ? q.budget.segments : 1))); }
+
+// Material class per budget: Lambert on Low, Standard above (Physical car bodies are built separately).
+function mat(params) {
+	if (q.budget && q.budget.material === 'lambert') {
+		const { roughness, metalness, envMapIntensity, ...rest } = params;
+		return track(new THREE.MeshLambertMaterial(rest));
+	}
+	return track(new THREE.MeshStandardMaterial(params));
+}
+
+// Run a post pass at a fraction of the frame (per-preset budget). EffectComposer sizes every pass to the
+// full frame in addPass/setSize, so the pass's own setSize is wrapped to apply the scale.
+function atScale(pass, k) {
+	if (!(k > 0 && k < 1)) return pass;
+	const setSize = pass.setSize.bind(pass);
+	pass.setSize = (w, h) => setSize(Math.max(1, Math.round(w * k)), Math.max(1, Math.round(h * k)));
+	return pass;
+}
 
 // ---------------------------------------------------------------- procedural textures
 
@@ -135,9 +161,15 @@ function noiseFill(ctx, w, h, base, spread, count, size, seed) {
 	}
 }
 
-function buildTextures() {
+// Asphalt and verge textures at the preset budget's size (drawn in 256-px units, so every size looks alike).
+function buildSizedTextures() {
+	const b = q.budget || { road: 256, ground: 256 };
+	if (textures.road && textures.road.image.width === b.road && textures.ground.image.width === b.ground) return false;
+	untrack(textures.road); untrack(textures.ground);
 	// Asphalt: fine aggregate plus darker tyre tracks along each lane (multiplied by the theme road colour).
-	textures.road = canvasTexture(256, 512, (ctx, w, h) => {
+	textures.road = canvasTexture(b.road, b.road * 2, (ctx, pw, ph) => {
+		const w = 256, h = 512;
+		ctx.scale(pw / w, ph / h);
 		noiseFill(ctx, w, h, 236, 60, 9000, 2, 7);
 		const lanePx = w / (LANE_COUNT + 1);
 		for (let lane = 0; lane < LANE_COUNT; lane++) {
@@ -149,7 +181,9 @@ function buildTextures() {
 			}
 		}
 	}, [1, STRIP_LENGTH / SEGMENT_LENGTH]);
-	textures.ground = canvasTexture(256, 256, (ctx, w, h) => {
+	textures.ground = canvasTexture(b.ground, b.ground, (ctx, pw, ph) => {
+		const w = 256, h = 256;
+		ctx.scale(pw / w, ph / h);
 		noiseFill(ctx, w, h, 225, 90, 14000, 3, 3);
 		const rnd = seeded(5);
 		for (let i = 0; i < 40; i++) {
@@ -157,6 +191,11 @@ function buildTextures() {
 			ctx.beginPath(); ctx.arc(rnd() * w, rnd() * h, 8 + rnd() * 26, 0, Math.PI * 2); ctx.fill();
 		}
 	}, [4, STRIP_LENGTH / 10]);
+	return true;
+}
+
+function buildTextures() {
+	buildSizedTextures();
 	textures.kerb = canvasTexture(32, 128, (ctx, w, h) => {
 		ctx.fillStyle = '#bcbcbc'; ctx.fillRect(0, 0, w, h);
 		ctx.fillStyle = '#b3322a'; ctx.fillRect(0, 0, w, h / 2);
@@ -193,7 +232,7 @@ void main() {
 
 const SKY_FRAG = `
 uniform vec3 uTop; uniform vec3 uMid; uniform vec3 uHorizon; uniform vec3 uSunColor; uniform vec3 uCloudColor;
-uniform vec3 uSunDir; uniform float uTime; uniform float uClouds; uniform float uStars; uniform float uSunGlow;
+uniform vec3 uSunDir; uniform float uTime; uniform float uClouds; uniform float uStars; uniform float uSunGlow; uniform float uOctaves;
 varying vec3 vDir;
 float hash(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
 float hash2(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -201,7 +240,8 @@ float noise(vec2 p) {
 	vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f);
 	return mix(mix(hash2(i), hash2(i + vec2(1.0, 0.0)), f.x), mix(hash2(i + vec2(0.0, 1.0)), hash2(i + vec2(1.0, 1.0)), f.x), f.y);
 }
-float fbm(vec2 p) { float v = 0.0; float a = 0.5; for (int i = 0; i < 4; i++) { v += a * noise(p); p *= 2.03; a *= 0.5; } return v; }
+// Cloud octaves follow the preset budget (uOctaves, 2–5).
+float fbm(vec2 p) { float v = 0.0; float a = 0.5; for (int i = 0; i < 5; i++) { if (float(i) >= uOctaves) break; v += a * noise(p); p *= 2.03; a *= 0.5; } return v / (1.0 - a * 2.0 + 0.0001) * 0.9375; }
 void main() {
 	vec3 d = normalize(vDir);
 	float h = d.y;
@@ -258,20 +298,20 @@ function ensureCarParts() {
 	if (carParts) return carParts;
 	carParts = {
 		bodyGeo: track(new THREE.BoxGeometry(1.5, 0.55, CAR_LENGTH * 0.95)),
-		bodyRound: track(new RoundedBoxGeometry(1.5, 0.55, CAR_LENGTH * 0.95, 3, 0.16)),
+		bodyRound: track(new RoundedBoxGeometry(1.5, 0.55, CAR_LENGTH * 0.95, seg(3, 1), 0.16)),
 		cabinGeo: track(new THREE.BoxGeometry(1.25, 0.5, CAR_LENGTH * 0.42)),
-		cabinRound: track(new RoundedBoxGeometry(1.25, 0.5, CAR_LENGTH * 0.42, 3, 0.14)),
-		cabinMat: track(new THREE.MeshStandardMaterial({ color: 0x121a2a, roughness: 0.5, metalness: 0.1, envMapIntensity: 0.3 })),
-		wheelGeo: track(new THREE.CylinderGeometry(0.34, 0.34, 0.28, 16)),
-		wheelMat: track(new THREE.MeshStandardMaterial({ color: 0x14161c, roughness: 0.85 })),
-		hubGeo: track(new THREE.CylinderGeometry(0.18, 0.18, 0.3, 12)),
-		hubMat: track(new THREE.MeshStandardMaterial({ color: 0xb8c0cc, roughness: 0.3, metalness: 0.9 })),
+		cabinRound: track(new RoundedBoxGeometry(1.25, 0.5, CAR_LENGTH * 0.42, seg(3, 1), 0.14)),
+		cabinMat: mat({ color: 0x121a2a, roughness: 0.5, metalness: 0.1, envMapIntensity: 0.3 }),
+		wheelGeo: track(new THREE.CylinderGeometry(0.34, 0.34, 0.28, seg(16, 8))),
+		wheelMat: mat({ color: 0x14161c, roughness: 0.85 }),
+		hubGeo: track(new THREE.CylinderGeometry(0.18, 0.18, 0.3, seg(12, 6))),
+		hubMat: mat({ color: 0xb8c0cc, roughness: 0.3, metalness: 0.9 }),
 		headGeo: track(new THREE.BoxGeometry(0.34, 0.12, 0.06)),
-		headMat: track(new THREE.MeshStandardMaterial({ color: 0xfff6dc, emissive: 0xfff2cc, emissiveIntensity: 1.6 })),
+		headMat: mat({ color: 0xfff6dc, emissive: 0xfff2cc, emissiveIntensity: 1.6 }),
 		tailGeo: track(new THREE.BoxGeometry(0.42, 0.12, 0.06)),
-		tailMat: track(new THREE.MeshStandardMaterial({ color: 0x5a0a0a, emissive: 0xff2a1a, emissiveIntensity: 2.4 })),
+		tailMat: mat({ color: 0x5a0a0a, emissive: 0xff2a1a, emissiveIntensity: 2.4 }),
 		bumperGeo: track(new THREE.BoxGeometry(1.52, 0.16, 0.14)),
-		bumperMat: track(new THREE.MeshStandardMaterial({ color: 0x1b1f27, roughness: 0.6, metalness: 0.2 })),
+		bumperMat: mat({ color: 0x1b1f27, roughness: 0.6, metalness: 0.2 }),
 		spoilerGeo: track(new THREE.BoxGeometry(1.4, 0.06, 0.34)),
 		blobGeo: track(new THREE.PlaneGeometry(2.3, 5.0)),
 		blobMat: track(new THREE.MeshBasicMaterial({ map: textures.blob, transparent: true, depthWrite: false })),
@@ -279,18 +319,35 @@ function ensureCarParts() {
 	return carParts;
 }
 
+// Car paint per budget material class: Lambert (Low), Standard (Balanced), clearcoated Physical (High/Ultra).
 function bodyMaterial(color) {
-	const m = track(new THREE.MeshPhysicalMaterial({ color, roughness: 0.38, metalness: 0.3, clearcoat: 0, clearcoatRoughness: 0.08 }));
+	const kind = q.budget ? q.budget.material : 'physical';
+	const m = track(kind === 'lambert' ? new THREE.MeshLambertMaterial({ color })
+		: kind === 'standard' ? new THREE.MeshStandardMaterial({ color, roughness: 0.38, metalness: 0.3 })
+			: new THREE.MeshPhysicalMaterial({ color, roughness: 0.38, metalness: 0.3, clearcoat: 0, clearcoatRoughness: 0.08 }));
 	bodyMaterials.push(m);
 	applyBodyQuality(m);
 	return m;
 }
 
 function applyBodyQuality(m) {
+	if (m.isMeshLambertMaterial) return;
 	const glossy = q.reflections === 'on';
-	m.clearcoat = glossy ? 0.7 : 0;
+	if (m.isMeshPhysicalMaterial) m.clearcoat = glossy ? 0.7 : 0;
 	m.roughness = glossy ? 0.32 : 0.4;
 	m.metalness = glossy ? 0.35 : 0.25;
+}
+
+// Rebuild every car (player and traffic pool) after the material class or geometry LOD changed.
+function rebuildCars() {
+	for (const car of [playerMesh, ...trafficPool]) if (car) scene.remove(car);
+	for (const m of bodyMaterials) untrack(m);
+	if (carParts) for (const v of Object.values(carParts)) if (v.isBufferGeometry || (v.isMaterial && v !== carParts.blobMat)) untrack(v);
+	if (carParts) untrack(carParts.blobMat);
+	carParts = null;
+	bodyMaterials = []; blobs = []; trafficPool = [];
+	playerMesh = makeCar(0xffcc33, true);
+	scene.add(playerMesh);
 }
 
 // Authored silhouette: chassis + cabin + wheels, grouped so a car is a single
@@ -358,11 +415,11 @@ function applyCarDetail(car) {
 // ---------------------------------------------------------------- scenery
 
 function buildScenery() {
-	const trunkGeo = track(new THREE.CylinderGeometry(0.16, 0.24, 1.6, 6));
+	const trunkGeo = track(new THREE.CylinderGeometry(0.16, 0.24, 1.6, seg(6, 4)));
 	trunkGeo.translate(0, 0.8, 0);
-	const crownGeo = track(new THREE.ConeGeometry(1.3, 3.4, 7));
+	const crownGeo = track(new THREE.ConeGeometry(1.3, 3.4, seg(7, 5)));
 	crownGeo.translate(0, 3.1, 0);
-	const poleGeo = track(new THREE.CylinderGeometry(0.07, 0.1, 6.2, 8));
+	const poleGeo = track(new THREE.CylinderGeometry(0.07, 0.1, 6.2, seg(8, 4)));
 	poleGeo.translate(0, 3.1, 0);
 	const armGeo = track(new THREE.BoxGeometry(1.7, 0.08, 0.1));
 	armGeo.translate(-0.85, 6.1, 0);
@@ -371,10 +428,11 @@ function buildScenery() {
 	const postGeo = track(new THREE.BoxGeometry(0.1, 0.7, 0.1));
 	postGeo.translate(0, 0.35, 0);
 
-	const trunkMat = track(new THREE.MeshStandardMaterial({ color: 0x5a3f2a, roughness: 1 }));
-	const crownMat = track(new THREE.MeshStandardMaterial({ color: 0x2f6e3e, roughness: 0.9, flatShading: true }));
-	const metalMat = track(new THREE.MeshStandardMaterial({ color: 0x9aa4b2, roughness: 0.35, metalness: 0.85 }));
-	const lampMat = track(new THREE.MeshStandardMaterial({ color: 0xfff1d0, emissive: 0xffd89a, emissiveIntensity: 1 }));
+	const trunkMat = mat({ color: 0x5a3f2a, roughness: 1 });
+	const crownMat = mat({ color: 0x2f6e3e, roughness: 0.9, flatShading: true });
+	const metalMat = mat({ color: 0x9aa4b2, roughness: 0.35, metalness: 0.85 });
+	const lampMat = mat({ color: 0xfff1d0, emissive: 0xffd89a, emissiveIntensity: 1 });
+	const owned = [trunkGeo, crownGeo, poleGeo, armGeo, headGeo, postGeo, trunkMat, crownMat, metalMat, lampMat];
 
 	const inst = (geo, mat, count, cast) => {
 		const m = new THREE.InstancedMesh(geo, mat, count);
@@ -382,10 +440,11 @@ function buildScenery() {
 		m.frustumCulled = false;
 		m.castShadow = !!cast;
 		scene.add(m);
-		track({ dispose: () => m.dispose() });
+		owned.push(track({ dispose: () => m.dispose() }));
 		return m;
 	};
 	const railGeo = track(new THREE.BoxGeometry(0.08, 0.26, STRIP_LENGTH));
+	owned.push(railGeo);
 	const rails = [-1, 1].map(side => {
 		const r = new THREE.Mesh(railGeo, metalMat);
 		r.position.set(side * (HALF_ROAD + 1.35), 0.58, 0);
@@ -400,8 +459,19 @@ function buildScenery() {
 		arms: inst(armGeo, metalMat, LAMP_SLOTS * 2, false),
 		heads: inst(headGeo, lampMat, LAMP_SLOTS * 2, false),
 		posts: inst(postGeo, metalMat, POST_SLOTS * 2, false),
-		rails, trunkMat, crownMat, lampMat,
+		rails, trunkMat, crownMat, lampMat, owned,
 	};
+}
+
+// Rebuild the roadside scenery after the material class or geometry LOD changed.
+function rebuildScenery() {
+	if (!scenery) return;
+	for (const k of ['trunks', 'crowns', 'poles', 'arms', 'heads', 'posts']) scene.remove(scenery[k]);
+	for (const r of scenery.rails) scene.remove(r);
+	for (const d of scenery.owned) untrack(d);
+	scenery = null;
+	buildScenery();
+	lastSceneryAnchor = NaN;
 }
 
 // Integer hash → [0,1): scenery placement is a pure function of the world slot,
@@ -429,7 +499,8 @@ function placeScenery(anchor) {
 		const slot = firstTree + i;
 		for (let side = -1; side <= 1; side += 2) {
 			const salt = side < 0 ? 1 : 2;
-			const present = slotRand(slot, salt) < (desert ? 0.35 : 0.8);
+			const density = q.budget ? q.budget.trees : 1; // preset budget `trees`
+			const present = slotRand(slot, salt) < (desert ? 0.35 : 0.8) * density;
 			const s = present ? 0.75 + slotRand(slot, salt + 10) * 0.7 : 0;
 			tmpPos.set(side * (HALF_ROAD + 4 + slotRand(slot, salt + 20) * 16), 0, slot * TREE_SPACING + slotRand(slot, salt + 30) * TREE_SPACING * 0.8);
 			tmpQuat.setFromAxisAngle(UP, slotRand(slot, salt + 40) * Math.PI * 2);
@@ -495,8 +566,12 @@ export function init(canvas, options) {
 	renderer.shadowMap.enabled = false;
 	renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 	gpu = readGpu();
-	detected = detectPreset(gpu, !!opts.mobile);
-	q = resolve(opts.graphics || {}, detected);
+	// StarHermit hardware level → Auto preset (SwiftShader = level 0 → Low; phones cap at Balanced).
+	const G = globalThis.StarHermitGpu;
+	const system = G ? G.detectSystem() : {};
+	level = detectLevel(gpu, { ...system, mobile: !!system.mobile || !!opts.mobile });
+	detected = presetForLevel(level);
+	q = resolve(opts.graphics || {}, detected, level);
 	saved = opts.graphics || {};
 
 	canvas.addEventListener('webglcontextlost', onContextLost, false);
@@ -518,12 +593,12 @@ export function init(canvas, options) {
 	scene.add(keyLight.target);
 
 	skyDome = new THREE.Mesh(
-		track(new THREE.SphereGeometry(320, 32, 16)),
+		track(new THREE.SphereGeometry(320, seg(32, 12), seg(16, 6))),
 		track(new THREE.ShaderMaterial({
 			uniforms: {
 				uTop: { value: new THREE.Color() }, uMid: { value: new THREE.Color() }, uHorizon: { value: new THREE.Color() },
 				uSunColor: { value: new THREE.Color() }, uCloudColor: { value: new THREE.Color() }, uSunDir: { value: new THREE.Vector3(0, 1, 0) },
-				uTime: { value: 0 }, uClouds: { value: 0 }, uStars: { value: 0 }, uSunGlow: { value: 0 },
+				uTime: { value: 0 }, uClouds: { value: 0 }, uStars: { value: 0 }, uSunGlow: { value: 0 }, uOctaves: { value: 4 },
 			},
 			vertexShader: SKY_VERT, fragmentShader: SKY_FRAG, side: THREE.BackSide, depthWrite: false, fog: false,
 		})));
@@ -532,12 +607,12 @@ export function init(canvas, options) {
 
 	roadMesh = new THREE.Mesh(
 		track(new THREE.PlaneGeometry(ROAD_WIDTH, STRIP_LENGTH)),
-		track(new THREE.MeshStandardMaterial({ color: 0x39404e, roughness: 0.92 })));
+		mat({ color: 0x39404e, roughness: 0.92 }));
 	roadMesh.rotation.x = -Math.PI / 2;
 	roadMesh.receiveShadow = true;
 	scene.add(roadMesh);
 
-	const shoulderMat = track(new THREE.MeshStandardMaterial({ color: 0x2f7f6d, roughness: 1 }));
+	const shoulderMat = mat({ color: 0x2f7f6d, roughness: 1 });
 	const shoulderGeo = track(new THREE.PlaneGeometry(40, STRIP_LENGTH));
 	shoulderLeft = new THREE.Mesh(shoulderGeo, shoulderMat);
 	shoulderRight = new THREE.Mesh(shoulderGeo, shoulderMat);
@@ -549,7 +624,7 @@ export function init(canvas, options) {
 	const edgeGeo = track(new THREE.PlaneGeometry(0.16, STRIP_LENGTH));
 	const edgeMat = track(new THREE.MeshBasicMaterial({ color: 0xe6ebf2 }));
 	const kerbGeo = track(new THREE.PlaneGeometry(0.7, STRIP_LENGTH));
-	const kerbMat = track(new THREE.MeshStandardMaterial({ map: textures.kerb, roughness: 0.7 }));
+	const kerbMat = mat({ map: textures.kerb, roughness: 0.7 });
 	for (const side of [-1, 1]) {
 		const e = new THREE.Mesh(edgeGeo, edgeMat);
 		e.rotation.x = -Math.PI / 2; e.position.set(side * (HALF_ROAD - 0.3), 0.021, 0);
@@ -603,8 +678,8 @@ export function init(canvas, options) {
 
 	// Speed lines: bounded, cosmetic, never raycast against.
 	const lineGeo = track(new THREE.BufferGeometry());
-	const positions = new Float32Array(SPEED_LINE_COUNT * 2 * 3);
-	for (let i = 0; i < SPEED_LINE_COUNT; i++) {
+	const positions = new Float32Array(SPEED_LINE_MAX * 2 * 3);
+	for (let i = 0; i < SPEED_LINE_MAX; i++) {
 		const side = i % 2 === 0 ? -1 : 1;
 		const x = side * (HALF_ROAD + 0.6 + Math.random() * 3);
 		const y = 0.6 + Math.random() * 4;
@@ -619,10 +694,10 @@ export function init(canvas, options) {
 
 	// Boost exhaust: additive points in car-local space, faded through vertex colour.
 	const exGeo = track(new THREE.BufferGeometry());
-	exGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(EXHAUST_COUNT * 3), 3));
-	exGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(EXHAUST_COUNT * 3), 3));
-	exhaustAge = new Float32Array(EXHAUST_COUNT);
-	for (let i = 0; i < EXHAUST_COUNT; i++) exhaustAge[i] = i / EXHAUST_COUNT;
+	exGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(EXHAUST_MAX * 3), 3));
+	exGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(EXHAUST_MAX * 3), 3));
+	exhaustAge = new Float32Array(EXHAUST_MAX);
+	for (let i = 0; i < EXHAUST_MAX; i++) exhaustAge[i] = i / EXHAUST_MAX;
 	exhaust = new THREE.Points(exGeo, track(new THREE.PointsMaterial({
 		size: 0.5, map: textures.spark, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
 	})));
@@ -704,8 +779,22 @@ export function setTheme(id) {
 /** Apply saved graphics settings (the `graphics` object from the store). Live, no reload. */
 export function setGraphics(next) {
 	saved = next && typeof next === 'object' ? next : {};
-	q = resolve(saved, detected);
+	const pb = q.budget || {};
+	q = resolve(saved, detected, level);
 	if (!renderer) return;
+	const b = q.budget;
+	// Asset variants: rebuild textures, cars, scenery and sky geometry when the budget changes.
+	if (buildSizedTextures()) { roadMesh.material.map = null; shoulderLeft.material.map = null; }
+	if (pb.material !== b.material || pb.segments !== b.segments) {
+		rebuildCars();
+		rebuildScenery();
+		for (const m of [roadMesh, shoulderLeft, kerbs[0]]) { const old = m.material; m.material = mat({ color: old.color.getHex(), map: old.map, roughness: old.roughness ?? 0.9 }); untrack(old); }
+		shoulderRight.material = shoulderLeft.material;
+		kerbs[1].material = kerbs[0].material;
+		untrack(skyDome.geometry);
+		skyDome.geometry = track(new THREE.SphereGeometry(320, seg(32, 12), seg(16, 6)));
+		if (currentTheme) setTheme(currentTheme.id);
+	}
 	applyGraphics();
 }
 
@@ -731,6 +820,11 @@ function applyGraphics() {
 	applyQualityToScene();
 	for (const car of [playerMesh, ...trafficPool]) if (car) applyCarDetail(car);
 	for (const b of blobs) b.visible = q.shadows === 'off';
+	exhaustCount = Math.min(EXHAUST_MAX, Math.max(8, Math.round(EXHAUST_COUNT * q.budget.sparks)));
+	exhaust.geometry.setDrawRange(0, exhaustCount);
+	skyDome.material.uniforms.uOctaves.value = q.budget.clouds;
+	// Frosted backdrop blur behind menus and overlays only where the budget allows it.
+	document.body.classList.toggle('gfx-hud-blur', !!q.budget.hudBlur);
 	adaptiveScale = 1;
 	frameTimes = [];
 	postKey = null;
@@ -772,6 +866,7 @@ export function graphicsInfo(t) {
 	const px = [Math.round(size[0] * pixelRatio), Math.round(size[1] * pixelRatio)];
 	return {
 		gpu: gpu || 'unknown GPU',
+		level,
 		detected,
 		resolved: q,
 		summary: describe(q, px, t),
@@ -809,7 +904,7 @@ function ensurePost() {
 		c.setSize(w, h);
 		c.addPass(new RenderPass(scene, camera));
 		if (q.ao !== 'off') {
-			const ao = new GTAOPass(scene, camera, pw, ph);
+			const ao = atScale(new GTAOPass(scene, camera, pw, ph), q.budget.aoRes);
 			ao.output = GTAOPass.OUTPUT.Default;
 			ao.blendIntensity = 0.7;
 			ao.updateGtaoMaterial({ radius: 0.9, distanceExponent: 1.5, thickness: 1.5, scale: 1.0, samples: q.ao === 'high' ? 16 : 8 });
@@ -818,7 +913,7 @@ function ensurePost() {
 		}
 		if (q.bloom === 'on') {
 			// High threshold: only lamps, lights, pads and the sun bloom.
-			c.addPass(new UnrealBloomPass(new THREE.Vector2(w, h), 0.45, 0.4, 0.95));
+			c.addPass(atScale(new UnrealBloomPass(new THREE.Vector2(w, h), 0.45, 0.4, 0.95), q.budget.bloomRes));
 		}
 		if (q.grade === 'on') {
 			gradePass = new ShaderPass(GradeShader);
@@ -927,7 +1022,7 @@ function updateExhaust(state, px, pos, dt) {
 	const p = exhaust.geometry.attributes.position.array;
 	const c = exhaust.geometry.attributes.color.array;
 	const accent = playerGlow.material.color;
-	for (let i = 0; i < EXHAUST_COUNT; i++) {
+	for (let i = 0; i < exhaustCount; i++) {
 		let a = exhaustAge[i] + dt * 2.2;
 		if (a >= 1) a -= 1;
 		exhaustAge[i] = a;
@@ -1037,7 +1132,9 @@ export function render(state, alpha, dtSeconds) {
 	finishGate.position.z = state.stageLength;
 
 	speedLines.visible = !reducedMotion && state.boostActive;
-	speedLines.geometry.setDrawRange(0, (q.particles === 'high' ? SPEED_LINE_COUNT : SPEED_LINE_COUNT / 2) * 2);
+	// Speed lines: Particles tier × the budget's sparks factor.
+	const lines = Math.min(SPEED_LINE_MAX, Math.max(6, Math.round(SPEED_LINE_COUNT * q.budget.sparks)));
+	speedLines.geometry.setDrawRange(0, (q.particles === 'high' ? lines : Math.round(lines / 2)) * 2);
 	speedLines.position.z = anchor;
 	updateExhaust(state, px, pos, dt);
 
