@@ -5,40 +5,33 @@
 | | |
 |---|---|
 | Genre | Single-player arcade lane-switching racer, short stages |
-| Players | 1; asynchronous score comparison via local bests |
+| Players | 1; scores posted to the StarHermit high-score board |
 | Session length | 25–70 s per stage; 3–10 min per sitting |
-| Platforms | Desktop and mobile browsers, portrait and landscape |
-| Rendering | Three.js (WebGL) playfield inside a semantic HTML shell |
-| Simulation | Fixed 60 Hz deterministic step, seeded PRNG, replayable |
+| Platforms | StarHermit engine 1.17.1 (host API 1.19): the native StarHermit client and browsers (the engine's web runtime), desktop and mobile, portrait and landscape |
+| Rendering | `starhermit:scene` (three.js-like) road under an immediate-mode `starhermit:ui` shell |
+| Simulation | Fixed 60 Hz deterministic step on the runtime's fixed updates, seeded PRNG, replayable |
 
 ## 1. File map
 
 | Path | Responsibility |
 |---|---|
-| `index.html` | Entry point: canvas, HUD, overlay container, touch tray, live region; loads `starhermit-sdk.js` before the module entry. |
-| `starhermit-sdk.js` | Shared StarHermit client (`window.StarHermit`), an unmodified copy of `tools/starhermit-sdk.js`. |
-| `css/style.css` | Palette tokens, HUD, overlays, thumb tray, high-contrast and reduced-motion modes, key art. |
-| `src/index.js` | Bootstrap, phase machine, input map, rAF loop, HUD projection, `window.__laneSprint` test handles. |
+| `starhermit.txt` | Manifest: `engine.entry=native/main.ts`, `engine.version=1.17.1`, `engine.minor=19`, capabilities `platform,storage,clipboard`, `control.*` keys and `engine.gamepad.*` pads per action, `server=score-script.js`. |
+| `index.html`, `starhermit-files.json` | The engine's web loader and file index, written by `npm run package` (never edit; re-run after every change). |
+| `native/main.ts` | Entry: phase machine (title with attract scene → play ⇄ paused → results), input, fixed-step loop, results, lifecycle. |
+| `native/screens.ts` | Every screen and the HUD in `starhermit:ui`. |
+| `native/render.ts` | The road, cars, scenery, sky (WGSL), effects, camera and the post chain on `starhermit:scene`. |
+| `native/quality.ts` | The four looks (old presets and budgets) per runtime quality tier and level. |
+| `native/platform.ts` | Progress save and cloud merge, old-save migration, player/avatar/invite, server clock, score posting. |
+| `native/audio.ts`, `native/i18n.ts`, `native/style.ts`, `native/game.ts` | Sound clips per event; locale from the runtime; UI style registration and high-contrast tokens; types over the pure modules. |
 | `src/rules.js` | Pure rules: state, legality, fixed step, collision, scoring, hashing, PRNG. |
 | `src/content.js` | 40 authored stages, Daily stage, 5 themes, offline validator and reference solver. |
-| `src/session.js` | Command queue, fixed-step accumulator, replay envelope, snapshots, replay verification. |
-| `src/render.js` | Three.js scene, pooled meshes, camera, theme application, crash shake, procedural textures, instanced scenery, shadows, IBL, post-processing chain, adaptive resolution, disposal. |
-| `src/gfx.js` | Pure graphics quality model: presets, per-category tiers, per-preset budgets (`BUDGETS`, `budget()`), hardware level → preset (`LEVELS`, `detectLevel()`, `presetForLevel()`, `detectPreset()`), `resolve()`, `applyPreset()`, `sanitize()`, `describe()`. |
-| `src/gpu-level.js` | Shared StarHermit hardware-level detector (`window.StarHermitGpu`; copy of the canonical tools file, not edited here). |
-| `tests/gfx-bench.mjs` | Dev-only hook for `tools/gfx-bench.mjs` (60 FPS per-preset benchmark on real GPUs). |
-| `src/ui.js` | DOM rendering of every screen, HUD write-out, lane mirror, focus, live announcements. |
-| `src/audio.js` | WebAudio buses, sample rotation per event, synth fallback, focus suspension. |
-| `src/store.js` | Versioned, sanitized `localStorage` save (settings incl. `graphics`, best scores, highest stage). |
-| `src/platform.js` | StarHermit adapter over the SDK (launch token, sign-in, profile/avatar, cloud-save slot, settings KV, key bindings, invite link) plus signed-in round-trip-corrected clock sync; no network at all standalone. |
-| `src/i18n.js` | Nine locale tables, `initLanguage()` over `sh-language.js`, `onLanguage` listeners, `{param}` interpolation, `missingKeys()` / `AUTHORED` test hooks. |
-| `sh-language.js` | Shared StarHermit language preference (`window.StarHermitLanguage`), an unmodified copy of `tools/sh-language.js`, loaded before the SDK. |
-| `game-options.js` | Shared frame-rate / Language / Sound / Report-a-problem sections, an unmodified copy of `tools/game-options.js`. |
-| `score-script.js` | StarHermit platform script (`server=`): range-checks a finished run's total sent through `StarHermit.submitScores` and posts it to the `high-score` leaderboard (canonical copy in the games repo's `tools/score-script.js`). |
-| `server.js` | Local dev server: static files, `GET /api/v1/time`, validated `/ws` echo, traversal rejection. |
-| `vendor/` | `three.module.min.js` (r170) and `three/addons/` — the r170 post-processing passes, shaders, `RoomEnvironment` and `RoundedBoxGeometry` it imports (mapped as `three/addons/` in the import map). |
-| `assets/` | Title and results key art (WebP). |
-| `sfx/` | 18 Opus clips, `manifest.txt` (canonical), `manifest.json` (generator), `manifest.md` (audit). |
-| `tests/unit.mjs`, `tests/e2e.mjs` | 34 rules/content/i18n/gfx/server/platform assertions; full Playwright playthrough including the Graphics panel. |
+| `src/session.js` | Command log, fixed-step advance, replay envelope, snapshots, replay verification. |
+| `src/progress.js` | The progress document: normalize, merge, old cloud doc, bests, unlocks. |
+| `src/i18n.js` | String tables in the nine locales. |
+| `assets/ui-style.json` | `tools/ui-style.css` converted by `starhermit css` (`npm run css`). |
+| `assets/textures/*.png` | Asphalt and verge detail maps baked from the old canvas painters (`tools/bake-textures.mjs`). |
+| `score-script.js` | Server script: range-checks a run's `high-score` and returns it (the only source of leaderboard scores). |
+| `tests/`, `tools/` | Node tests, engine checks and play scripts; packaging, CSS, texture bake, play-script generator, browser play (left out of the package). |
 
 ## 2. Design pillars
 
@@ -50,13 +43,13 @@
 
 **4. A crash must be legible in retrospect.** Death is instant, but the results screen breaks the score into five named components and states the elapsed time. This rules in a numbers-first results table and a persistent per-stage best. It rules out unexplained totals, hidden multipliers, and score inflation from cosmetic play.
 
-**5. The whole game survives the canvas being useless.** The HUD, lane mirror, live region and all menus are real DOM. This rules in a three-cell lane mirror that mirrors the player and hazard lanes every tick. It rules out canvas-only text, colour-only hazard signalling, and hover-dependent controls.
+**5. The road is never the only channel.** The HUD, the three-cell lane mirror (player ▲ and hazard ✕ every tick), screen-reader announcements and every menu are accessible UI widgets. This rules out colour-only hazard signalling and hover-dependent controls.
 
 ## 3. Player experience
 
 **Target player:** anyone who wants a complete, sharp arcade run in under a minute — the pick-up-and-play mobile player and the desktop player chasing par time on stage 34.
 
-**First 60 seconds.** The title screen shows the name, a one-line tagline, decorative coastal key art, and five buttons; the attract scene behind it is a real stage rendered statically, so the canvas is never blank. "Play stage 1" or "Practice stage 1" is one click away. The run opens with the live region announcing `Stage 1 — Go!`, the HUD showing the boost chip in **Boost ready**, and the lane mirror already marking hazards with `✕`. Stage 1 is 900 m with 78 m row spacing and a 10 % chance of a double-blocked row: a player who does nothing survives several seconds, so the first lane change is discovered under low pressure. Boost pads appear at ~50 % of rows in early stages, and touching one triggers boost automatically with its own pickup chime, teaching what boost feels like before the player ever spends the manual charge. "How to play" states every control in one screen.
+**First 60 seconds.** The title screen shows the name, a one-line tagline, decorative coastal key art, and five buttons; the attract scene behind it is a real stage rendered statically, so the canvas is never blank. "Play stage 1" or "Practice stage 1" is one click away. The run opens with the live region announcing `Stage 1 — Go!`, the HUD showing the boost chip in **Boost ready**, and the lane mirror already marking hazards with `✕`. Stage 1 is 900 m with 78 m row spacing and a 10 % chance of a double-blocked row: a player who does nothing survives several seconds, so the first lane change is discovered under low pressure. Boost pads appear at ~50 % of rows in early stages, and touching one triggers boost automatically with its own pickup chime, teaching what boost feels like before the player ever spends the manual charge. "How to play" states every control (with the player's own key bindings) in one screen.
 
 **Session shape.** Play stage → crash or finish in 25–70 s → read the breakdown → "Next stage" (finish) or "Retry stage" (crash) → repeat. Progress unlocks one stage at a time; the title button always offers the highest unlocked stage.
 
@@ -77,9 +70,9 @@ Owner of every rule below: `src/rules.js`, unless stated.
 
 | Action | Legal when | Keys / touch |
 |---|---|---|
-| `lane_left` | `lane > 0`, run not terminal | ←, A, left half of canvas, ◀ button |
-| `lane_right` | `lane < 2`, run not terminal | →, D, right half of canvas, ▶ button |
-| `boost` | not already boosting **and** `elapsed >= boostReadyAt` | Space, W, ↑, Boost button |
+| `lane_left` | `lane > 0`, run not terminal | ←, A, left half of the road, ◀ Left, D-pad/left stick left |
+| `lane_right` | `lane < 2`, run not terminal | →, D, right half of the road, Right ▶, D-pad/left stick right |
+| `boost` | not already boosting **and** `elapsed >= boostReadyAt` | Space, W, ↑, Boost, A / RT |
 
 An illegal action increments `state.invalidActions` and is otherwise a no-op — the run is never corrupted by mashing.
 
@@ -94,7 +87,7 @@ An illegal action increments `state.invalidActions` and is otherwise a no-op —
 7. Checkpoints: crossing each quarter of the stage raises `checkpointIndex` and emits `checkpoint`.
 8. Finish: `position >= stageLength` clamps position, sets `finished`, emits `finish`.
 
-Commands are applied by `session.sendCommand` before the next step, so an input always lands on a deterministic tick regardless of frame rate. `session.advance` consumes wall-clock time in fixed steps, capped at 12 catch-up steps so a stalled tab cannot fast-forward the player into traffic.
+Commands are applied by `session.sendCommand` on the tick they are pressed on (before the next step), so an input always lands on a deterministic tick. On the engine the runtime's fixed steps run at 60 Hz and each advances the session by exactly one step (`session.advance(s, DT)`) while the run is live, so pauses, a hidden window and slow frames never cost time.
 
 ### Scoring (`scoreBreakdown`, integers only)
 
@@ -107,7 +100,7 @@ finishBonus= finished ? 500 : 0
 total      = distance + passes + pads + timeBonus + finishBonus
 ```
 
-**Worked example** (real e2e run, stage 1, par 30 s): 900 m travelled, 4 clean passes, 2 pads, finished at 23.37 s → `900 + 100 + 80 + round(6.63 × 60)=398 + 500 = 1978`. This is the exact total the results screen prints.
+**Worked example** (the bot run of `tests/native/stage-1-finish.play`, stage 1, par 30 s): 900 m, 5 clean passes, 2 pads, finished at 21.37 s → `900 + 125 + 80 + 518 + 500 = 2123`, the total the play script expects on the results.
 
 ### Terminal states and tie-breaks
 
@@ -115,7 +108,7 @@ total      = distance + passes + pads + timeBonus + finishBonus
 
 ### RNG, determinism and replay
 
-`createRng` is mulberry32; stage seeds are FNV-1a hashes of `lane-sprint/v2/stage-N` (`hashSeed`), so layouts are identical on every device and build. `stateHash` folds seed, tick, lane, centi-metre position and speed, passes, pads and the flag byte. `session.verifyReplay` re-runs the recorded command list from the seed and asserts an identical hash; both `npm test` and the e2e test call it on a completed run.
+`createRng` is mulberry32; stage seeds are FNV-1a hashes of `lane-sprint/v2/stage-N` (`hashSeed`), so layouts are identical on every device and build. `stateHash` folds seed, tick, lane, centi-metre position and speed, passes, pads and the flag byte. `session.verifyReplay` re-runs the recorded command list from the seed and asserts an identical hash; `npm test` calls it on completed runs.
 
 There is no undo (the simulation is continuous and real-time) and no hint system; the lane mirror plus the 170 m sightline are the assistance the design provides.
 
@@ -123,80 +116,61 @@ There is no undo (the simulation is continuous and real-time) and no hint system
 
 | Mode | Entry | Stage | Differs by |
 |---|---|---|---|
-| Journey | "Play stage N" | Highest unlocked stage (`store.highestStage`, capped at 40) | Finishing unlocks the next stage; the results screen offers "Next stage". |
+| Journey | "Play stage N" | Highest unlocked stage (`progress.highestStage`, capped at 40) | Finishing unlocks the next stage; the results screen offers "Next stage". |
 | Practice | "Practice stage 1" | Stage 1 | Always the tutorial stage; no unlock pressure, best score still recorded. |
 | Daily | "Daily challenge" | `getDailyStage(platform.now())` | One shared seed per UTC day, fixed 1400 m, kept in a separate `dailyBest` map, never unlocks stages. |
 
 **Curve.** Across stages 1→40, `t` runs 0→1: length 900→1800 m, row spacing 78→44 m, double-block chance 0.10→0.65, pad chance 0.50→0.30, traffic 12–20 → 18–28 m/s, par time = length/30 s, theme cycling through the five palettes. Difficulty therefore comes from a shrinking reaction window and denser walls, not from raising the player's speed.
 
-**Daily content.** The day key is `YYYY-MM-DD` UTC and the seed hashes `lane-sprint/v2/daily/<key>`; spacing (50–70 m) and double-block chance (0.25–0.60) are derived from the seed. Days are immutable once published; When signed in, `platform.syncTime()` corrects the clock against the host so a skewed device does not get yesterday's stage; standalone uses the device clock.
+**Daily content.** The day key is `YYYY-MM-DD` UTC and the seed hashes `lane-sprint/v2/daily/<key>`; spacing (50–70 m) and double-block chance (0.25–0.60) are derived from the seed. Days are immutable once published; the day comes from the platform's clock (`serverNow()`) when it has answered, else the device's UTC date.
 
 **Unlocks** are stage access only. There is no currency, no cosmetic shop and no stat progression.
 
 ## 6. Controls and interaction
 
-| Input | Desktop | Mobile | Feedback |
+| Action | Keys (default, rebindable in Options) | Gamepad | Touch / mouse |
 |---|---|---|---|
-| Move left | ← / A | ◀ button, tap left half of the canvas | Car banks and slides, `lane` whoosh, mirror updates, live-region "Lane n of 3" |
-| Move right | → / D | ▶ button, tap right half of the canvas | as above |
-| Boost | Space / W / ↑ | Boost button | Teal ground glow, speed lines, camera pull-back, `boost` clip, HUD chip → **Boosting** |
-| Pause | Esc / P | Pause button in the HUD | Simulation halts, pause overlay takes focus, audio context suspends |
-| Restart | R | "Restart" / "Retry stage" | Fresh session at tick 0 |
-| Menu action | Click / Enter / Space on a button | Tap | `ui` click clip |
+| Move left | ← / A | D-pad left, left stick left | tap or click the left half of the road; ◀ Left |
+| Move right | → / D | D-pad right, left stick right | right half of the road; Right ▶ |
+| Boost | Space / W / ↑ | A (South), RT | Boost |
+| Pause / resume | Esc / P | Start | Pause (HUD, top right) |
+| Restart | R | Y (North) | Restart in the pause menu, Retry stage on the results |
 
-**Input locking.** Gameplay keys are ignored outside the `play` phase; `keydown` is skipped for `SELECT`/`INPUT` targets and for repeats and modifier combos, so buttons keep native Enter/Space activation and the shared Language `<select>` keeps its arrow keys. Canvas taps only steer during play. Illegal actions are rejected by the rules, not by the input layer, and are counted.
-
-**Automatic pause.** `visibilitychange` pauses the run and suspends audio; the accumulator is cleared on resume so a backgrounded tab loses no ground and gains none.
+The bottom tray (Left / Boost / Right) shows during a live run, 60 px tall on touch devices and 48 px with a mouse. Presses on the HUD or the tray never count as road taps. Game keys clear the UI focus so they do not also walk or press menu buttons. Menus are driven by keyboard, pad (the runtime's UI navigation), mouse and touch; Escape closes How to play and Settings. How to play lists the player's effective key bindings.
 
 ## 7. Screens and UI flow
 
-Phases in `src/index.js`: `title → play ↔ paused → results`, with `overlay` for help/settings reached from title or results (from play, opening an overlay pauses first and returns to the pause screen). `ui.showScreen(id)` shows exactly one of `title | help | settings | paused | results` or none (`play`), hides the touch tray and pause button whenever an overlay is up, and moves focus to the first button or select in the shown screen — or back to the canvas when play resumes.
+- **Title** over the attract scene (the furthest unlocked stage, rendered but never advanced, with a slow camera drift): name, tagline, signed-in player line (avatar, "Playing as …", cloud-save status), the key art (hidden at ≤ 620 px tall and in high contrast), Play stage N, Daily challenge, Practice stage 1, How to play, Settings, Invite a friend (signed in), Sign in with StarHermit (guest).
+- **How to play**: rules, controls (keys from the bindings, touch, gamepad), Back.
+- **Settings**: the game has no options of its own any more — sound, graphics, language, reduced motion, high contrast and larger text are the runtime's Options (Open Options) and Key bindings opens the runtime's rebinding; Back.
+- **Run**: HUD over a top gradient (Stage, Score, Speed in km/h, the boost pill Boost ready / Boosting / Boost in Ns, Player and save status when signed in, Pause), a progress bar and the three-lane mirror; the tray below.
+- **Paused**: Resume, Restart, How to play, Settings, Quit to title. A hidden window pauses the run.
+- **Results**: Stage complete / Crashed, the finish illustration (finished, ≥ 620 px tall), the five-part breakdown and total, time and best, the leaderboard line (signed in), New best score!, Next stage (finished, not Daily) / Retry stage / Quit to title.
 
-**Layout.** The canvas is fixed full-viewport. The HUD is a top bar padded by `env(safe-area-inset-top)` carrying stage, score, speed, boost chip and Pause, then a progress bar, then the three-cell lane mirror. Overlays are a centred panel, max 62ch of text, scrollable, padded by both safe-area insets. The touch tray is fixed to the bottom thumb zone at `12px + env(safe-area-inset-bottom)` with 44 px minimum targets; on fine pointers it slims to 150 px wide but stays available. Below 520 px wide, the HUD tightens its gaps and type; below 620 px tall, decorative key art is dropped so the menu never scrolls out of reach. Below 500 px tall, overlay padding and results-table rows tighten so the whole results panel fits a landscape phone. On large screens `ui-scale.js` sets `--ui-scale` (1 up to 1600×1000, then `min(w/1600, h/1000)` capped at 2.5) and the HUD, banner, overlays, touch tray, fps meter and toast are CSS-`zoom`ed by it (their vw lengths divided by it); the full-viewport canvas stays unzoomed.
-
-**Never cut off:** the boost chip, the lane mirror, the primary button of any overlay, and every row of the results breakdown. The e2e test asserts no element in `#title-screen` or `#hud` overflows its own box, at 1280×800 and at a 390×844 touch viewport.
+Panels are centred, at most 560 px wide, and scroll inside when taller than the window; buttons wrap into rows. Toasts (invite copied, signed out) show at the bottom for 3.5 s.
 
 ## 8. Art direction
 
-**Palette (CSS tokens, `css/style.css`).** Ink `#f2f7ff`, muted `#a9c0da`, background `#0b1a2b`, panel `rgba(8,20,34,0.88)`, accent teal `#2fd6c8` on `#06231f`, danger `#ff6b5e`, primary hover `#56e6da`. High contrast swaps to black panels, `#ffffff` text, `#ffe600` accent and `#ff2d00` danger, and hides decorative art.
+**Palette** (`tools/ui-style.css` tokens): ink `#f2f7ff`, muted `#a9c0da`, panel `#081422e0`, accent teal `#2fd6c8` on `#06231f`, danger `#ff6b5e`. High contrast (the runtime's option) swaps to black panels, white muted text and borders, `#ffe600` accent and `#ff2d00` danger, and hides the decorative art; the 3D view goes to a flat dark sky with the roadside scenery and kerbs hidden.
 
-**Themes (`content.js`), one per stage cycle:** coastal (sky `#8fd4ff`, road `#39404e`, accent `#2fd6c8`), sunset (`#ff9d6e` / `#3b3340` / `#ffd166`), night (`#101c33` / `#23283a` / `#7cc6ff`), snow (`#dfeeff` / `#4a5160` / `#9ad9ff`), desert (`#f6d9a0` / `#4d4438` / `#ff8f5a`). Each theme sets sky dome, road, fog (90–260 m) and light intensity; night drops the key light to 0.9 and ambient to 0.6.
+**Themes** (`content.js`), one per stage cycle: coastal, sunset, night, snow, desert — each sets the sky dome (zenith → theme sky → fog-coloured horizon, sun glow, stars at night, fbm clouds), road and ground colours, fog (90–260 m), key and hemisphere light.
 
-**Shape language.** Chunky boxes (rounded at detailed scenery): chassis + darker cabin + four cylinder wheels, grouped so a car reads as one object rather than a primitive. Player car is `#ffcc33` (a colour no traffic car uses — traffic is HSL-generated in a narrow red-orange band). Pads are teal slabs carrying two white cone chevrons, so their meaning survives colour blindness and high contrast.
+**Shape language and motion** are the browser build's: chunky cars (rounded bodies with lights, hubs and bumpers on detailed scenery; the player `#ffcc33` with a spoiler), teal pads with white chevrons, lane-change banking, the 5.4 m-high chase camera pulling back 2.2 m while boosting, a crash roll and shake, speed lines and additive exhaust while boosting, pulsing pads, an idle bob.
 
-**Typography.** System UI stack throughout. HUD labels are 11 px uppercase with 0.08em tracking; values are large and plain; the results total is 20 px accent.
+**Graphics levels.** The runtime's Options choose a graphics level (Auto by the device); `native/quality.ts` maps its quality tier to the old presets:
 
-**Motion.** The hero of the screen is the road rushing under the car. Lane changes interpolate at 12 units/s with a bank (yaw −0.25, roll 0.12 of the residual); the camera sits 5.4 m up and 11.5 m back and pulls back a further 2.2 m while boosting. Crashing rolls the car to 0.5 rad and triggers a 1.0 shake that decays at 2.5/s. Speed lines (28 bounded segments, 14 with low boost effects) render only while boosting.
-
-**Graphics.** The renderer uses ACES filmic tone mapping with sRGB output. Each theme sets a gradient sky dome (zenith → theme sky → fog-coloured horizon) with a sun glow — a low sun straight ahead at sunset — plus stars at night and procedural clouds that drift slowly; a hemisphere fill and a key directional light are tinted per theme (warm at sunset, blue moonlight at night), and the grass shoulders take a per-theme ground colour. Optional effects: sun shadows from a PCF shadow box (68 m square) that follows the player and is snapped to whole texels, a soft contact blob under every car when shadows are off, image-based lighting (`RoomEnvironment` through `PMREMGenerator`) giving clear-coated car paint and glass reflections, GTAO ambient occlusion, bloom limited to emissive highlights (threshold 0.95: tail-lights, headlights, street lamps, pulsing boost pads, the sun), a colour grade with vignette (vignette off in high contrast), and FXAA/SMAA/MSAA. Scenery detail adds asphalt and grass textures with tyre-worn lanes, red-and-white kerbs, guard rails, street lamps (bright at night and sunset), instanced low-poly trees placed by a hash of their world slot so they never reshuffle, rounded car bodies with lights, bumpers and hubcaps, a rear spoiler on the player car, and a chequered finish gate. Boost effects add additive exhaust trails and the full set of speed lines. Ambient motion — clouds, an idle bob of the player car, pulsing pads and a slow camera drift on the title attract scene — stops with reduced motion. High contrast keeps flat dark sky and hides decorative scenery. Settings → **Graphics** offers a quality preset (Auto, chosen from the StarHermit hardware level below; Low; Balanced; High; Ultra), a render scale slider (50–200 %), one override per effect (shadows, ambient occlusion, bloom, colour grade, anti-aliasing, reflections, scenery detail, boost effects, sky) defaulting to "From preset (…)", adaptive resolution (averages 90 frames; above 26 ms it steps the resolution down by 10 % to a 60 % floor, below 14 ms back up by 5 %) and a frame-rate readout (bottom-left, never over controls), plus a summary line "GPU · Level N · cost · W×H px" (the level label localized). Presets cap the device pixel ratio (Low 1, Balanced 1.5, High/Ultra 2; Ultra renders at 125 %), and Low runs no post chain, so it is no more expensive than the original renderer. Choosing a preset clears the overrides. Changes apply live (shadow maps, materials, textures, scenery and the post chain rebuild without a reload), are saved under `graphics` in the `lane-sprint/v1` save (and so mirrored to the cloud slot), and set `data-gfx-preset` on `<body>` and the canvas. If the post-processing chain cannot be built, the game renders without it and the panel says so.
-
-**Hardware level and Auto.** `src/gpu-level.js` (the shared StarHermit detector, `window.StarHermitGpu`, loaded as a classic script before `src/index.js`) rates the GPU 0–20 (0 = Galaxy S20 / Intel UHD or weaker, 20 = RTX 5090, each level ≈ 1.23× the one below; laptop parts two levels lower; phones, tablets and ≤ 4 GB machines capped at 9; software renderers 0). Auto picks **Low from 0, Balanced from 4, High from 10, Ultra from 17**, so strong desktop GPUs get Ultra; adaptive resolution still steps down when frames are slow. On phones and tablets the shared frame-rate option paces Auto at half the display refresh rate and starts at 16 simultaneous sounds.
-
-**Per-preset budgets** (`BUDGETS` in `src/gfx.js`; each tuned to hold 60 FPS on the weakest GPU Auto gives it — Low: level 0 phones / Intel UHD, Balanced: level 4 Iris Xe, High: level 10 GTX 1070, Ultra: level 17 RTX 4080). Gameplay is identical on every preset.
-
-| Preset | Car paint / car parts, road, scenery | Asphalt / verge texture | Geometry LOD | Tree density | Cloud octaves | Exhaust and speed lines | Overlay backdrop | Bloom / GTAO resolution |
+| Tier | Shadows | AO | Bloom / grade | AA | Reflections | Scenery detail | Boost effects | Materials, LOD, trees, cloud octaves |
 |---|---|---|---|---|---|---|---|---|
-| Low | Lambert / Lambert | 128×256 / 128 px | ½ | ½ | 2 | 0.5× | opaque, no blur | ½ / ½ |
-| Balanced | Standard / Standard | 256×512 / 256 px | ¾ | ¾ | 3 | 0.75× | opaque, no blur | ½ / ½ |
-| High | clearcoated Physical / Standard | 256×512 / 256 px | 1 | full | 4 | 1× | frosted (blur) | ½ / ½ |
-| Ultra | clearcoated Physical / Standard | 512×1024 / 512 px | 1.5 | full | 5 | 1.5× | frosted (blur) | full / full |
+| low | off (blob shadows) | off | off | MSAA | off | plain | half the speed lines | Lambert, ½, ½, 2 |
+| balanced | 1024 | off | on | FXAA | on | detailed | exhaust + all lines | Standard, ¾, ¾, 3 |
+| high | 2048 | on | on | SMAA | on | detailed | exhaust + all lines | clear-coated Physical, 1, 1, 4 |
+| ultra | 4096 | high | on | MSAA | on | detailed | exhaust + all lines | clear-coated Physical, 1.5, 1, 5 |
 
-Geometry LOD multiplies the segments of wheels, hubs, the sky dome, tree trunks and crowns and lamp poles, and the bevel segments of the rounded car bodies and cabins. Exhaust points and speed lines scale within the preset by the hardware level (`StarHermitGpu.scaleBudget`, ≤ 2×; fewer below the floor). Textures, cars, scenery and the sky dome are rebuilt when the preset changes. The backdrop blur behind menus and overlays is re-composited every frame over the moving 3D view, so it is reserved for High/Ultra (`body.gfx-hud-blur`). Bloom and GTAO run at a fraction of the frame through a wrapped pass `setSize`.
-
-**60 FPS benchmark** (`node tools/gfx-bench.mjs lane-sprint [--mobile --presets low,balanced]`, dev-only, real GPUs; hook `tests/gfx-bench.mjs` picks the preset in Settings → Graphics, starts a Practice run and keeps changing lanes and boosting from the keyboard, restarting finished runs). Measured 2026-10-17 (an AMD Radeon iGPU at level 2 projected to each preset's floor level, the same page with draws skipped subtracted; typical p50 ≤ 12 ms and slow p90 ≤ 14 ms, CPU p90 ≤ 6 ms on the NVIDIA run):
-
-- Desktop 1920×1080: PASS low (typical 0.19, slow 0.31 ms at level 0; CPU 1.30 ms); PASS balanced (typical 1.67, slow 1.99 ms at level 4; CPU 3.10 ms); PASS high (typical 1.85, slow 2.46 ms at level 10; CPU 2.20 ms); PASS ultra (typical 2.97, slow 3.06 ms at level 17; CPU 2.30 ms).
-- Mobile 390×844 @3×: PASS low (typical 0.52, slow 0.10 ms at level 0; CPU 1.10 ms); PASS balanced (typical 0.04, slow 2.44 ms at level 4; CPU 1.90 ms).
-
-**Reduced motion** raises lane interpolation to 40 units/s (near-instant, no overshoot), zeroes bank and roll, suppresses the crash shake, hides speed lines, and disables all CSS transitions and animations. Nothing informative is lost.
-
-**Visual assets the design calls for:** decorative coastal key art on the title screen (the game's mood in one frame, no text so it localizes), a text-free finish-gate illustration on the completion results screen, and the existing 16:9 `coverart.png` for the platform card. All are decorative (`alt=""`), removed on load error, and hidden in high contrast.
+Exhaust points and speed lines grow with the level within a tier (≤ 2×). Bloom (threshold 0.95: lights, lamps, pads, the sun), GTAO and the grade (S-curve 0.22, saturation 1.1, warm highlights / cool shadows, a blue tint at night, 0.24 vignette) are `renderer.bloom / ao / grade`. Render scale, the pixel-ratio cap, adaptive resolution and the frame-rate limit and readout are the runtime's. **Reduced motion** (runtime option) makes lane changes near-instant without bank, stops the bob, drift, pad pulse and cloud motion, and drops the crash shake, speed lines and exhaust.
 
 ## 9. Audio direction
 
-**Mix philosophy.** No music and no engine loop: the game is short and dense, so audio is purely confirmatory. One gain bus (`fxBus`) carries everything; the Sound setting sets its gain to 0 while listeners still fire, so visual cues stay perfectly in sync when audio is muted. The context is created lazily and only unlocked by a real user gesture (`resumeAudio` on any action), and suspended whenever the document is hidden.
-
-**Rotation.** Each event owns 2–3 clips played round-robin (`eventCursor`), so repeated lane changes never sound mechanical. Samples are fetched and decoded on first use and cached; if a clip is missing or the context is not yet unlocked, a synth `blip` fallback plays instead, so every event is always audible.
+Confirmatory one-shots only (no music): each event owns 2–3 clips played round-robin. Game events play on the runtime's effects bus, menu clicks on the interface bus; the runtime's Options own volumes, mute and the voice limit. Clips load one at a time once the mixer runs (after the first press in a browser); a clip still loading is silent. Sound stops while paused or hidden.
 
 ### SFX event table (source of truth for `sfx/manifest.txt`)
 
@@ -208,121 +182,60 @@ Geometry LOD multiplies the segments of wheels, hubs, the sky dome, tree trunks 
 | `checkpoint` | `checkpoint-blip`, `checkpoint-sweep` | Two-note blip; short filter sweep | Each quarter-distance checkpoint crossed |
 | `crash` | `crash-impact`, `crash-scrape`, `crash-thud` | Metallic impact, barrier scrape, body thud | Collision ends the run |
 | `finish` | `finish-fanfare`, `finish-chime`, `finish-applause` | Brass fanfare, rising bells, small crowd | Finish line crossed |
-| `ui` | `ui-select`, `ui-back` | Muted click; descending two-tone click | Any non-gameplay action dispatched by `handleAction` |
-
-Fallback synth voices: lane 440 Hz triangle, boost 880 Hz saw, pad 660 Hz triangle, checkpoint 523 Hz sine, crash 160 Hz square, finish 987 Hz triangle, ui 330 Hz sine.
+| `ui` | `ui-select`, `ui-back` | Muted click; descending two-tone click | Any non-gameplay action (menu buttons) |
 
 Format: 48 kHz mono Opus, 96 kbps VBR, loudness-normalized, generated with MOSS-SoundEffect v2.0 at 100 steps.
 
 ## 10. Localization
 
-Ships en-US, en-GB, es-419, es-ES, de-DE, fr-FR, fr-CA, pt-BR, it-IT. Strings live in `src/i18n.js` as one full en-US table plus per-locale override tables merged over it, so a missing key can never render as blank — `missingKeys()` is asserted empty for all nine locales, and a stricter unit test checks that every key the code uses is authored (not inherited from English) in every non-English locale.
-
-Settings → **Language → Game language** (the shared section `game-options.js` renders from the `sh-language.js` instance, inside the Graphics host below the game's own graphics controls) offers **Automatic — <resolved language>** plus the nine locales by native name and a status line (Saved to account / Saved on this device / Account sync unavailable); it is the only language selector and is reachable from the title and from the pause menu mid-run. Resolution: explicit game choice → for Automatic, the StarHermit account's `preferredLanguage` (`GET /api/v1/me/language`, signed in only) → `navigator.languages` (nearest shipped locale: `es-MX → es-419`, `en-AU → en-GB`, `fr → fr-FR`) → `en-US`. The choice (`auto` or a locale) is stored per player in `localStorage['lane-sprint.language.<user|guest>']` and, signed in, in the per-player settings key `ui.language` as `{ choice }`; the game's own settings mirror never adopts or patches `ui.*` keys, and the platform preference is never written. A change applies immediately: `onLanguage` → `relocalize()` re-renders title, help, pause, touch tray, HUD captions, landmark `aria-label`s, the settings frame's own boxes (the shared sections and the open Language select are not rebuilt) and the results panel, sets `document.documentElement.lang`, and never touches the running or paused simulation.
-
-Interpolation is `{name}` token replacement (`t(key, params)`); a unit test asserts every locale keeps its `{n}` parameter and leaves no unsubstituted braces. Layout allows roughly 60 % expansion: menu buttons wrap rather than truncate, panel text is capped at 62ch, and no shipped image contains words.
+All strings are in `src/i18n.js` in en-US, en-GB, es-419, es-ES, de-DE, fr-FR, fr-CA, pt-BR and it-IT; the language is the runtime's (Options › Language, else the account's or the device's) and switches on the next frame. `npm test` checks that every key the client shows is authored in every locale.
 
 ## 11. Accessibility
 
-- **Keyboard-only path:** boot → Tab to "Play" → play with arrows/Space → Esc to pause → Tab/Enter through the pause menu → results buttons. Every overlay moves focus to its first control on open; `:focus-visible` is a 3 px accent outline, including on the canvas.
-- **Screen readers:** `#live-region` is `role="status" aria-live="polite"` and announces stage start, lane changes ("Lane 2 of 3") and the terminal outcome with time or distance; repeated text is suppressed so the reader is not flooded. Each lane-mirror cell carries an `aria-label` naming the lane and whether a hazard is ahead. The progress bar is a real `role="progressbar"` with a live `aria-valuenow`. Settings toggles expose `aria-pressed`.
-- **Non-colour signalling:** the lane mirror prints `▲` for the player lane and `✕` for a hazard lane; pads carry chevrons; the boost chip prints its state as words.
-- **Contrast:** default ink on background exceeds 4.5:1; High contrast mode forces black panels, white borders and a yellow accent, and re-themes the 3D scene (road `#14161c`, sky `#05070c`, yellow player glow, saturated traffic).
-- **Reduced motion:** honoured from `prefers-reduced-motion` on first boot and toggleable in Settings; see §8.
-- **Targets:** 44×44 CSS px minimum on the touch tray with 8 px separation, kept clear of browser chrome and cutouts by safe-area padding.
-- **No time-limited interaction outside the run itself**, and no audio-only information.
+Every control is a focusable widget with a name; the progress bar is a meter; the lane mirror marks the player (▲) and hazards (✕) in text, not colour alone; lane changes, the run's start and its result are announced (polite, repeats skipped). Reduced motion, high contrast and larger text follow the runtime's options; keys and pads are rebindable.
 
 ## 12. StarHermit integration
 
-`starhermit.txt` declares `name`, `launch=index.html`, `owner` and `server=score-script.js`; `coverart.png` is the platform card. It also declares the keyboard actions `control.lane_left=ArrowLeft+KeyA`, `lane_right=ArrowRight+KeyD`, `boost=Space+KeyW+ArrowUp`, `pause=Escape+KeyP`, `restart=KeyR`.
-
-`starhermit-sdk.js` (the shared client, unmodified) loads before `src/index.js`; `platform.readLaunchContext()` calls `StarHermit.init()` first thing at boot.
-
-**Used:**
-- **Launch token** — the SDK reads `#game_token=` (or the `#access_token=` sign-in return), strips it, takes `sub`/`game_scope` from it (never hard-coded) and renews it before expiry; every platform call carries `Authorization: Bearer …`. If renewal is refused a toast says the player is signed out and play continues locally.
-- **Sign-in** — on `<id>.starhermit.com` without a token the title shows **Sign in with StarHermit**; hidden when signed in and when running locally.
-- **Account identity** — the profile nickname (never a username; `"Player " + id` fallback) and avatar in the HUD and on the title line.
-- **Cloud save** — the `lane-sprint/v1` document lives in the slot `game:<slug>` (remote wins on boot when present, and nothing is pushed until that load has read the slot; localStorage stays the offline cache; saves debounce 2 s and flush with keepalive on `pagehide`/hidden), with a sync badge in the HUD.
-- **Settings KV** — reduced motion, high contrast, sound and graphics are mirrored with `patchSettings` on change (600 ms debounce); on boot the platform values are applied over the local ones.
-- **Save conflicts** — after the boot load, cloud writes are conditional (SDK ETag). When another device saved first the SDK emits `saveconflict`; `store.js` reloads the slot and merges it with this device's document (`mergeSaves`: furthest unlocked stage, best score per stage and per day from either side, this device's settings), adopts it and pushes it again. A failed reload keeps local progress and shows the error badge.
-- **Report a problem** — Settings (signed in only, from `game-options.js`) files a bug report through `StarHermit.reportBug`; uncaught errors are filed as crash reports through `StarHermit.captureCrashes` (SDK-capped).
-- **Controls** — `keydown` routes by `event.code` through `StarHermit.loadBindings`; when the player has rebound keys, How to play appends the effective keys.
-- **Invite link** — **Invite a friend** on the title (signed in only) copies `StarHermit.inviteLink()` with a confirmation toast.
-- **Authoritative time** — signed in only, `GET /api/v1/time` with round-trip correction (`syncTime`) so the Daily stage matches the platform's UTC day rather than the device clock. Standalone (no launch token) the client makes no `/api` or `/ws` request at all.
-
-Account strings (sign-in, invite, toasts) are localized in all nine locales (`sh.*` keys in `src/i18n.js`).
-
-**Leaderboard:** when signed in, every finished run (Journey, Practice or Daily; finished or crashed) posts its score-breakdown total through `StarHermit.submitScores({ 'high-score': total })`; `score-script.js` posts it to the `high-score` board (integer, higher is better, 0–100,000). The results screen shows "Posting score to the leaderboard…", then "Leaderboard rank: #N" (or "Score posted to the leaderboard." / "Score not posted to the leaderboard."), localized through `src/i18n.js` (`sh.lb*`). Standalone posts nothing and shows no line.
-
-**Not used:** matchmaking, session invites, chat, replays and platform achievements (`score-script.js` reports only scores; `server.js` is the local dev host with a hardened `/ws` echo); per-stage best scores remain personal records, mirrored through the cloud save. No realtime rooms or voice. Nothing in the game requires a host to be playable.
+- **Saves:** the progress document `{ highestStage, bestScores, dailyBest }` is the engine save (device at once, account debounced). A conflict between devices merges (furthest stage, best per stage and per day). The browser build's cloud slot (`game:<slug>`, its whole store document as JSON) shows as foreign and is merged in and replaced once. Guests' old browser localStorage progress does not migrate.
+- **Settings:** the old account-settings keys (`reducedMotion`, `highContrast`, `sound`, `graphics`, `ui.language`) are removed; those choices are the runtime's Options now.
+- **Leaderboard:** after every run (finished or crashed) a signed-in player's total is sent through a practice session to `score-script.js`, which range-checks it (0–100 000) and returns it as the `high-score` score — the server script is the only source of scores; the results show the posting state and the rank.
+- **Player:** display name, avatar, invite link (copied to the clipboard), Sign in for guests, a toast when signed out.
+- **Clock:** the Daily's day by `serverNow()`, falling back to the device's UTC date.
 
 ## 13. Technical architecture
 
-**Dependency direction:** `rules` ← `content` ← `session` ← `index` → {`render`, `ui`, `audio`, `store`, `platform`, `i18n`}; `store` → `platform` for the cloud mirror. `rules.js` imports nothing and touches no DOM, so it runs unchanged in Node for tests, validators and the solver. `render.js` reads state, never writes it.
-
-**Determinism and replay.** Fixed 1/60 s step, integer-friendly scoring, seeded layouts, per-tick command log with an FNV state hash every 60 ticks. `verifyReplay` reconstructs a run from the seed and command list — it is the game's own anti-cheat and regression detector.
-
-**Persistence.** One `localStorage` key `lane-sprint/v1`, written through `sanitize()`, which clamps `highestStage` to 1–999 and rejects non-finite or negative scores, so a corrupted or hand-edited save degrades to defaults rather than breaking boot. Storage is probed in a `try/catch`; private-mode failures leave the game fully playable and stateless. Hosted sessions mirror the same document to the platform cloud slot (remote wins on boot); localStorage remains the offline cache.
-
-**Performance budget.** No per-frame allocation in `step()` or `render()`. Meshes are pooled and clipped to a 170 m ahead / 40 m behind window; geometry and materials are shared and tracked in a `disposables` list freed by `dispose()`. Pixel ratio capped per graphics preset (1 / 1.5 / 2) and scaled by the render-scale and adaptive-resolution factors; the effect composer runs only when a post effect is enabled. Target 60 fps on mid-range mobile; catch-up capped at 12 steps per frame.
-
-**Failure paths.** No WebGL → the title screen renders with an explanatory line and the game does not boot the renderer. WebGL context loss → rendering halts safely (`isContextLost`) without throwing. A missing key-art file removes its `<img>`. A missing SFX clip falls back to synthesis. A failed time sync falls back to the local clock.
-
-**How the e2e drives the real UI.** `tests/e2e.mjs` imports the shipped `server.js`, starts it, and drives Chromium through visible controls only — clicking `[data-action]` buttons, pressing real keys, selecting the shared Language `<select>`, reloading to prove persistence. `window.__laneSprint` is used only to *read* phase/state/snapshot and to verify the replay hash, never to advance or shortcut play.
+The pure modules (`src/*.js`) are imported unchanged by the TypeScript client (`allowJs`) and by the node tests. `native/main.ts` advances the session one rules step per 60 Hz fixed update while the run is live and applies commands on input; `render.ts` draws the state each frame, interpolating the player's position between steps. The world is rebuilt when the graphics tier changes its assets. Cosmetic randomness (speed lines, shake) never touches the rules' streams.
 
 ## 14. Testing and acceptance criteria
 
-`npm test` = `tests/unit.mjs` (34 assertions) then `tests/e2e.mjs`.
-
-**Unit** covers: PRNG reproducibility; all 40 stages pass `validateStage` (rows never block every lane, pads in range, positive length and par); every stage is finished by the non-boosting reference solver; the Daily seed is stable per UTC day and differs across days; legality rules including "boost must not stack" and terminal lockout; illegal actions counted, never applied; a passive run always terminates within 200 s; the graphics model (hardware level → preset: SwiftShader / llvmpipe / `Radeon Graphics` / UHD → Low, Iris Xe → Balanced, GTX 1070 → High, RTX 4080 / 5090 → Ultra, phones and tablets Balanced at most; the per-preset budget table and its level scaling; preset/override resolution, scale clamping, presets clearing overrides, sanitizing and the cost summary); the score breakdown sums to its total and yields integers; unfinished runs earn no bonuses; identical command streams hash identically; replay verification matches, including a command issued on the current tick; `advance` is frame-rate independent; all nine locales complete with working interpolation; the server's content types, `/api/v1/time`, unknown-API JSON errors, 404s, traversal rejection and non-GET rejection; and `src/platform.js` over the SDK with a stubbed fetch — token read and stripped, nickname, cloud save round-trip through `game:<slug>`, settings PATCH, binding overrides, invite link, Bearer on every call, zero fetches standalone (including `syncTime`), sign-in on the UUID hosted domain, shared `ui.*` keys kept out of game settings, `mergeSaves`, and a stale conditional write (412) that reloads, merges and saves again.
-
-**E2E** runs the whole flow twice, at 1280×800 desktop and a 390×844 mobile touch viewport: boot to title, no clipped text, help open/close, settings toggles plus a Language switch (exactly one selector; French re-renders the menu, saved on this device) that changes `documentElement.lang`, settings surviving a reload, the Graphics section (Auto detecting Low on the software GPU with the summary naming Level 0, Low then High applied to `data-gfx-preset` and the summary, a bloom override, the render-scale slider driven by arrow keys, the frame-rate toggle, all surviving a reload, then an Ultra practice run and a return to Auto from the pause menu), practice run advancing, lane controls moving the car and updating the mirror, boost activating then reporting a cooldown, pause freezing the tick and resume restoring it, restart returning to tick 0, a run reaching a terminal state and showing results, replay hash matching, quit returning to title, canvas resizing with the viewport, then StarHermit: standalone makes no same-origin `/api` or `/ws` request (whole pass) and shows no account buttons, and a `#game_token=` launch against a stubbed API (`page.route`) shows the nickname on the title, strips the token, loads `game:<slug>`, and Invite a friend shows a toast; then a Language step with the stubbed `GET /api/v1/me/language` answering fr-CA (Automatic resolves to fr-CA; Deutsch re-renders the settings frame in place without replacing the Language select, PUTs `ui.language`, a Report a problem posts to `/reports`, no horizontal overflow) and a mid-run switch to Italiano from the pause menu (pause menu, HUD captions and stage, touch tray and canvas label re-render; tick and position unchanged; the run resumes) — and it fails on any console error or warning, page error, failed request or HTTP ≥ 400.
-
-**QA bar (checkable statements).** Every implemented feature is reachable by clicking visible UI. The console is clean across both viewports. No text or control is clipped at either size. A first-time player is taught by stage 1's low density, the always-visible boost chip, the automatic pad boost and a complete "How to play" screen. Assets that could use platform features do (time sync, launch token); no multiplayer feature exists outside the platform.
+- `npm test` = `node tests/unit.mjs` (rules, all 40 stages solvable, the next 40 Dailies, legality, scoring, determinism and replay verification, i18n coverage, the progress document and old-save reading, the generated play script in step with the bot) + `node tests/native.mjs` (web index up to date, `tsc`, `starhermit check .` with no warnings, and each `tests/native/*.play` as a signed-out `--render-check`).
+- Play scripts: `menus.play` (title, How to play, Settings, a run, boost, pause, quit); `stage-1-finish.play` (generated by `node tools/gen-plays.mjs`: the bot's exact key timings drive stage 1 to the finish and the expected total, then Next stage, pause, Restart, a crash on stage 2, Retry, R, Quit).
+- `npm run test:browser` (`tools/browser-play.mjs`): the packaged loader in Chrome on the GPU at desktop, phone (DPR 3) and landscape phone (DPR 3) — start, lane changes, boost, pause, results — failing on console errors or warnings.
+- `npm run package` after the last change; `npm run css` after editing `tools/ui-style.css`.
 
 ## 15. Asset inventory
 
-| Path | Purpose | Source | Status |
-|---|---|---|---|
-| `assets/title-key-art.webp` | Decorative coastal-highway art on the title screen | FLUX.2 klein, seed 70701, 1536×864 → WebP q80 (43 KB) | Generated this pass, wired |
-| `assets/results-finish.webp` | Decorative finish-gate art on the completion results screen | FLUX.2 klein, seed 70702, 1024×576 cropped to 1024×346 → WebP q82 (24 KB) | Generated this pass, wired |
-| `coverart.png` | Platform card art (16:9) | FLUX.2 klein (earlier pass) | Shipped |
-| `icon.png`, `favicon.svg` | App icon and tab icon | Authored | Shipped |
-| `sfx/lane-whoosh-{soft,quick,deep}.opus` | `lane` cue rotation | MOSS-SoundEffect v2.0 | Shipped |
-| `sfx/boost-{ignition,surge,roar}.opus` | `boost` cue rotation | MOSS-SoundEffect v2.0 | Shipped |
-| `sfx/pad-{chime,charge}.opus` | `pad` cue rotation | MOSS-SoundEffect v2.0, 100 steps | Generated this pass, wired |
-| `sfx/checkpoint-{blip,sweep}.opus` | `checkpoint` cue rotation | MOSS-SoundEffect v2.0, 100 steps | Generated this pass, wired |
-| `sfx/crash-{impact,scrape,thud}.opus` | `crash` cue rotation | MOSS-SoundEffect v2.0 | Shipped |
-| `sfx/finish-{fanfare,chime,applause}.opus` | `finish` cue rotation | MOSS-SoundEffect v2.0 | Shipped |
-| `sfx/ui-{select,back}.opus` | `ui` cue rotation | MOSS-SoundEffect v2.0, 100 steps | Generated this pass, wired |
-| `vendor/three.module.min.js` | Three.js renderer | three ^0.170.0 | Shipped |
+| Path | Purpose |
+|---|---|
+| `assets/title-key-art.webp`, `assets/results-finish.webp` | Decorative title and finish art (FLUX.2 klein) |
+| `assets/textures/road.png`, `ground.png` | Asphalt (tyre tracks) and verge detail maps, baked |
+| `assets/ui-style.json` | The UI style sheet |
+| `cover.jpg`, `coverart.png`, `icon.png` | Platform card, cover art, icon |
+| `sfx/*.opus` | The event clips above (MOSS-SoundEffect v2.0, 48 kHz mono Opus) |
 
-The player car, traffic cars, boost pads, road, markings, sky dome and speed lines are procedural Three.js geometry — no 3D model files ship, and none are needed at this shape fidelity.
+The cars, pads, road, scenery and sky are procedural geometry; no 3D model files ship.
 
 ## 16. Known limitations
 
-- **Cloud mirror when hosted.** Best scores, highest stage and settings live in the `lane-sprint/v1` localStorage key, which is also mirrored to the platform cloud slot when a launch token is present (remote wins on boot, 2 s debounce, `pagehide` flush). Without a host — or after clearing site data with no cloud doc — progress is device-local. The only shared ranking is the platform `high-score` board (all modes on one board); there are no friend comparisons or per-day daily rankings, so the Daily challenge is otherwise a personal-best chase.
-- **WebGL context loss is survived but not recovered.** Loss is detected and rendering stops cleanly; GPU resources are not rebuilt, so the player must reload.
-- **No gamepad support.** Keyboard, pointer and touch only.
-- **No music or ambience.** Audio is confirmatory only; long sessions are silent between cues.
-- **Boost is binary.** There is no partial charge, no charge meter beyond ready/active/cooldown text, and no way to cancel a boost early.
-- **Crash is instant and total.** There is no glancing hit, damage state or recovery; the only mitigation is that distance, passes and pads are all kept.
-- **Traffic never changes lanes**, so reading the road is a spatial problem rather than a predictive one.
-- **Decorative key art is hidden below 620 px of viewport height** (landscape phones) to protect the menu; those players see the 3D attract scene alone.
+- **One shared board:** all modes post to the `high-score` board; there are no per-day Daily rankings. Solo scores are the client's total range-checked by `score-script.js` (no server replay verification).
+- **Signed-in paths not live-tested here:** the cloud merge, old-save migration, settings-key removal and score posting are covered by unit tests of their logic only.
+- **No music or ambience;** a sound clip still loading is silent (the old synth fallback blips are not ported).
+- **The old Graphics panel's per-effect overrides and the menus' backdrop blur are not offered;** the runtime's level choice replaces them.
+- **Boost is binary,** crashes are instant and total, and traffic never changes lanes (design).
+- **Decorative art is hidden at ≤ 620 px of window height** and in high contrast.
 
 ## Design intent not yet implemented
 
-- **Learn mode** with one-rule-at-a-time lessons; today stage 1 plus the "How to play" screen carries the teaching load.
+- **Learn mode** with one-rule-at-a-time lessons; today stage 1 plus How to play carries the teaching load.
 - **Challenge mode** with constrained goals (lane-lock, no-boost, pad-only runs).
-- **Score chase** against validated seeds shared through the platform, and hosted daily rankings via the reserved `/ws` channel.
 - **Adaptive audio** — a speed-reactive bed that rises with boost.
-- **Quality tiers** selecting pixel ratio and effect density from measured frame time.
-
-## Browser interference
-
-`browser-guard.js` (loaded from `index.html`) suppresses browser UI that gets in the way of play: the right-click context menu, the iOS long-press callout, copy / cut / paste, and page text selection. Text fields (inputs, textareas, selects, contenteditable) keep normal selection, context menu and clipboard behaviour.
-
-
-## Sound and frame-rate options
-
-The options panel includes Sound controls for master, music, effects and UI volume, a mute that preserves volume levels, and an Auto or manual concurrent-sound limit (1–64). Changes apply immediately with perceptual volume curves. A shared allocator bounds Web Audio and media playback, including loops and scheduled sources. Graphics includes Auto display refresh or a custom maximum frame rate from 1–1000 FPS; rendering is paced independently of simulation and input. Preferences persist locally, with FPS stored per detected GPU, and reconcile with Starhermit settings when signed in. The controls support keyboard and touch input and the supported English, Spanish, German, French, Portuguese and Italian locales.
