@@ -110,7 +110,7 @@ function repeat(t: Texture, x: number, y: number): Texture {
 }
 const loader = new TextureLoader();
 function image(path: string, rx: number, ry: number): Texture {
-  const t = loader.load(path, undefined, (e) => console.warn(`${path}: ${e.message}`));
+  const t = loader.load(path, undefined, (e: unknown) => console.warn(`${path}: ${e instanceof Error ? e.message : String(e)}`));
   t.colorSpace = SRGBColorSpace;
   return repeat(t, rx, ry);
 }
@@ -692,7 +692,7 @@ export function update(state: State | null, alpha: number, dtIn: number, width: 
   const w = world;
   if (!w || !look || !state) return;
   if (width > 0 && height > 0) camera.aspect = width / height;
-  // three.js sizes attenuated points by size × pixel ratio × half the CSS height; the engine (1.17.1) takes
+  // three.js sizes attenuated points by size × pixel ratio × half the CSS height; the engine (1.18.0) takes
   // half the window's physical height, so the pixel ratio counts twice (repro in the port report): divide it out once.
   (w.exhaust.material as PointsMaterial).size = 0.5 / Math.max(1, dpr);
   camera.updateProjectionMatrix();
