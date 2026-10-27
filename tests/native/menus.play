@@ -1,0 +1,32 @@
+# The title and its doors: How to play, Settings; a stage started and paused.
+until 300 Lane Sprint
+frames 200
+save title
+click =How to play
+until 60 Controls
+frames 10
+save help
+click =Back
+until 60 Daily challenge
+frames 10
+click =Settings
+until 60 Open Options
+frames 10
+save settings
+click =Back
+until 60 Daily challenge
+frames 10
+click =Play stage 1
+until 60 Boost ready
+frames 60
+save play
+key Space 1
+frames 60
+save boost
+key Escape 1
+until 60 Resume
+frames 10
+save paused
+click =Quit to title
+until 60 Daily challenge
+frames 10

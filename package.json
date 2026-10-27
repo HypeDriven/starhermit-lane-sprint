@@ -1,25 +1,19 @@
 {
   "name": "lane-sprint",
   "version": "1.0.0",
-  "description": "Lane Sprint - a short-stage arcade lane-switching racer rendered with Three.js.",
-  "main": "index.js",
-  "keywords": [],
-  "author": "",
-  "license": "SEE LICENSE IN LICENSE.md",
-  "dependencies": {
-    "three": "^0.170.0",
-    "vite": "^5.4.21",
-    "ws": "^8.21.3"
-  },
-  "devDependencies": {
-    "playwright-core": "^1.62.1"
-  },
   "private": true,
   "type": "module",
+  "description": "Lane Sprint — a short-stage arcade lane-switching racer on the StarHermit engine.",
   "scripts": {
-    "start": "node server.js",
-    "test": "npm run test:unit && npm run test:e2e",
+    "test": "npm run test:unit && npm run test:native",
     "test:unit": "node tests/unit.mjs",
-    "test:e2e": "node tests/e2e.mjs"
+    "test:native": "node tests/native.mjs",
+    "test:browser": "node tools/browser-play.mjs .",
+    "package": "node tools/package-web.mjs",
+    "css": "node tools/css.mjs"
+  },
+  "license": "SEE LICENSE IN LICENSE.md",
+  "devDependencies": {
+    "playwright-core": "^1.62.1"
   }
 }

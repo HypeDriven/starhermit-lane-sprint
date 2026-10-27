@@ -1,0 +1,42 @@
+# Stage 1 driven to the finish by the bot of tools/gen-plays.mjs (generated: do not edit), its total
+# checked on the results (2123); then Next stage, Pause, Restart, a crash on stage 2 by holding the
+# middle lane, and Quit to title.
+until 300 Lane Sprint
+frames 30
+click =Play stage 1
+until 60 Boost ready
+frames 286
+key ArrowLeft 1
+frames 0
+key Space 1
+frames 490
+key Space 1
+frames 491
+key Space 1
+until 600 Stage complete
+frames 20
+expect 2123
+save stage-1-results
+click =Next stage
+until 60 Stage 2
+frames 30
+key Escape 1
+until 60 Resume
+frames 10
+click =Restart
+until 60 Boost ready
+until 3000 Crashed
+frames 20
+save stage-2-crash
+click =Retry stage
+until 60 Boost ready
+frames 10
+key KeyR 1
+until 60 Boost ready
+frames 10
+key Escape 1
+until 60 Resume
+frames 10
+click =Quit to title
+until 60 Play stage 2
+frames 10

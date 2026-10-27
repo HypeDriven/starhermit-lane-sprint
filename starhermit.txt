@@ -1,11 +1,36 @@
 name=Lane Sprint
 description=Weave between three lanes of traffic and use well-timed boosts to race to the finish.
-launch=index.html
 owner=2712e04e-461b-4d23-81ae-e40b429128a8
 server=score-script.js
 cover=cover.jpg
+
+# StarHermit engine script game: one package, played natively by the
+# StarHermit client and in browsers by the engine's web runtime. Browsers open
+# launch=index.html, the loader `npm run package` writes (it pins the engine
+# on wiki.starhermit.com by hash; never edit it). Re-run `npm run package`
+# after every change and commit index.html + starhermit-files.json.
+launch=index.html
+engine.api=1
+engine.entry=native/main.ts
+engine.version=1.17.1
+engine.minor=19
+engine.capabilities=platform,storage,clipboard
+
+# Keyboard controls (players rebind keys and pads in the runtime's Options).
+# Touch screens tap the left or right half of the road, or use the
+# on-screen Left / Boost / Right tray.
 control.lane_left=ArrowLeft+KeyA | Move left
 control.lane_right=ArrowRight+KeyD | Move right
 control.boost=Space+KeyW+ArrowUp | Boost
 control.pause=Escape+KeyP | Pause / resume
 control.restart=KeyR | Restart
+engine.group.lane_left=Driving
+engine.group.pause=Run
+
+# Gamepad defaults: the D-pad or left stick changes lanes, A or the right
+# trigger boosts, Start pauses, Y restarts.
+engine.gamepad.lane_left=DpadLeft+LeftStickLeft
+engine.gamepad.lane_right=DpadRight+LeftStickRight
+engine.gamepad.boost=South+RightTrigger
+engine.gamepad.pause=Start
+engine.gamepad.restart=North

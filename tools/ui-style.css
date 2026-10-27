@@ -1,0 +1,111 @@
+/* Lane Sprint — the browser build's css/style.css rewritten class-based for
+   the engine's UI (`npm run css` converts it into assets/ui-style.json).
+   Element selectors, ids, attribute selectors and @media do not convert:
+   every widget names its classes and the breakpoints are layouts picked in
+   native/screens.ts. High contrast (the old body.high-contrast palette),
+   larger text and reduced motion are the runtime's options; native/style.ts
+   swaps the tokens. */
+
+:root {
+  --bg: #0b1a2b;
+  --ink: #f2f7ff;
+  --muted: #a9c0da;
+  --accent: #2fd6c8;
+  --accent-hover: #56e6da;
+  --accent-ink: #06231f;
+  --danger: #ff6b5e;
+  --panel: #081422e0;
+  --panel-border: #ffffff1f;
+  --btn: #ffffff12;
+  --btn-hover: #ffffff24;
+  --btn-border: #ffffff47;
+  --rule: #ffffff1f;
+  --touch: #081422cc;
+  --boost-touch: #2fd6c847;
+  --lane: #040c1680;
+  --lane-border: #ffffff40;
+  --lane-player: #2fd6c838;
+  --track: #ffffff2e;
+  --focus: #2fd6c8;
+}
+
+* { box-sizing: border-box; }
+
+/* ------------------------------------------------------------- text */
+.body { color: var(--ink); font-size: 16px; }
+.tagline { color: var(--muted); font-size: 16px; }
+.title { color: var(--ink); font-size: 44px; font-weight: 700; }
+.title-small { color: var(--ink); font-size: 30px; font-weight: 700; }
+.h2 { color: var(--ink); font-size: 30px; font-weight: 700; }
+.h2-small { color: var(--ink); font-size: 24px; font-weight: 700; }
+.h3 { color: var(--accent); font-size: 16px; font-weight: 700; }
+.new-best { color: var(--accent); font-size: 16px; font-weight: 700; }
+.note { color: var(--muted); font-size: 13px; }
+.player-line { color: var(--muted); font-size: 13px; }
+.sync-synced { color: var(--accent); font-size: 13px; }
+.sync-error { color: var(--danger); font-size: 13px; }
+.dt { color: var(--muted); font-size: 16px; font-weight: 500; }
+.dd { color: var(--ink); font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.dt-total { color: var(--ink); font-size: 16px; }
+.dd-total { color: var(--accent); font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.row-rule { border-bottom: 1px solid var(--rule); padding: 8px 4px; }
+
+/* ------------------------------------------------------------- panels */
+.overlay { background: #030a13d6; }
+.panel {
+  background: var(--panel); border: 1px solid var(--panel-border); border-radius: 12px;
+  padding: 24px; box-shadow: 0 18px 48px #00000073;
+}
+.key-art { border: 1px solid #2fd6c859; border-radius: 12px; }
+
+/* ------------------------------------------------------------- buttons */
+.btn {
+  min-height: 44px; min-width: 44px; padding: 10px 18px;
+  border: 2px solid var(--btn-border); border-radius: 10px;
+  background: var(--btn); color: var(--ink); font-size: 16px; font-weight: 600; text-align: center;
+}
+.btn:hover { background: var(--btn-hover); }
+.btn:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.btn-primary {
+  min-height: 44px; min-width: 44px; padding: 10px 18px;
+  border: 2px solid var(--accent); border-radius: 10px;
+  background: var(--accent); color: var(--accent-ink); font-size: 16px; font-weight: 600; text-align: center;
+}
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-primary:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.btn-touch {
+  min-height: 60px; padding: 10px 12px; border: 2px solid var(--btn-border); border-radius: 10px;
+  background: var(--touch); color: var(--ink); font-size: 16px; font-weight: 600; text-align: center;
+}
+.btn-touch:hover { background: #102236e0; }
+.btn-touch:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.btn-boost {
+  min-height: 60px; padding: 10px 12px; border: 2px solid var(--accent); border-radius: 10px;
+  background: var(--boost-touch); color: var(--ink); font-size: 16px; font-weight: 600; text-align: center;
+}
+.btn-boost:hover { background: #2fd6c866; }
+.btn-boost:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+/* ------------------------------------------------------------- HUD */
+.hud-shade { background: linear-gradient(180deg, #040c16d9, #040c1600); }
+.hud-label { color: var(--muted); font-size: 11px; letter-spacing: 0.88px; text-transform: uppercase; }
+.hud-score { color: var(--ink); font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.hud-value { color: var(--ink); font-size: 16px; font-variant-numeric: tabular-nums; }
+.hud-value-small { color: var(--ink); font-size: 11px; font-variant-numeric: tabular-nums; }
+.hud-player { color: var(--ink); font-size: 14px; font-weight: 600; }
+.boost-ready { padding: 4px 10px; border-radius: 999px; border: 2px solid var(--accent); }
+.boost-cooldown { padding: 4px 10px; border-radius: 999px; border: 2px solid var(--muted); }
+.boost-active { padding: 4px 10px; border-radius: 999px; border: 2px solid var(--accent); background: var(--accent); }
+.boost-text-ready { color: var(--accent); font-size: 13px; font-weight: 600; }
+.boost-text-cooldown { color: var(--muted); font-size: 13px; font-weight: 600; }
+.boost-text-active { color: var(--accent-ink); font-size: 13px; font-weight: 600; }
+.lane-cell { padding: 4px 0; border-radius: 8px; border: 2px solid var(--lane-border); background: var(--lane); }
+.lane-hazard { padding: 4px 0; border-radius: 8px; border: 2px solid var(--danger); background: var(--lane); }
+.lane-player { padding: 4px 0; border-radius: 8px; border: 2px solid var(--accent); background: var(--lane-player); }
+.lane-text { color: var(--muted); font-size: 13px; font-weight: 600; }
+.lane-text-hazard { color: var(--danger); font-size: 13px; font-weight: 600; }
+.lane-text-player { color: var(--ink); font-size: 13px; font-weight: 600; }
+
+/* ------------------------------------------------------------- toast */
+.toast { background: #0c1018f0; border: 1px solid #ffffff33; border-radius: 10px; padding: 10px 16px; }
+.toast-text { color: #ffffff; font-size: 16px; }
