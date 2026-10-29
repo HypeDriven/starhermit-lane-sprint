@@ -11,12 +11,12 @@
 // additive exhaust, the chase camera with its boost pull, attract drift and
 // crash shake, and the key light whose shadow follows the player.
 //
-// From three.js r170: light intensities are ÷ π (the engine's convention);
+// From three.js r170: light intensities as the page set them (minor 28);
 // the sky ShaderMaterial is WGSL; RoomEnvironment(renderer) gives the
 // image-based lighting; the post chain (GTAOPass, UnrealBloomPass threshold
 // 0.95, the GradeShader before the output, FXAA / SMAA / MSAA) is
-// renderer.ao / bloom / grade / antialias; the shadow box (±34 m around the
-// player) is the engine's `shadow.distance`; the procedural asphalt and verge
+// renderer.ao / bloom / grade / antialias; the page's fitted shadow box (±34 m
+// around the player, texel-snapped); the procedural asphalt and verge
 // canvases are baked PNGs (tools/bake-textures.mjs). Adaptive resolution,
 // the pixel-ratio cap and the frame-rate readout are the runtime's.
 // Cosmetic randomness never touches the rules' stream.
@@ -76,11 +76,14 @@ let highContrast = false;
 let attract = false;
 let themeId = "coastal";
 
-// -- lights (three.js intensities ÷ π) and environment ---------------------------------------
-const ambient = new HemisphereLight(0xffffff, 0x334455, 1.1 / PI);
-const keyLight = new DirectionalLight(0xffffff, 1.6 / PI);
+// -- lights (the page's three.js intensities) and environment ---------------------------------------
+const ambient = new HemisphereLight(0xffffff, 0x334455, 1.1);
+const keyLight = new DirectionalLight(0xffffff, 1.6);
+const SHADOW_EXTENT = 34;
 keyLight.shadow.bias = -0.0004;
-keyLight.shadow.distance = 70;
+keyLight.shadow.normalBias = 0.03;
+Object.assign(keyLight.shadow.camera, { left: -SHADOW_EXTENT, right: SHADOW_EXTENT, top: SHADOW_EXTENT, bottom: -SHADOW_EXTENT, near: 1, far: 140 });
+keyLight.shadow.camera.updateProjectionMatrix();
 const keyDir = new Vector3(0, 1, 0);
 scene.add(ambient, keyLight, keyLight.target);
 const fog = new Fog(0xa8dcff, 90, 260);
@@ -522,11 +525,11 @@ function applyTheme(): void {
   fog.color.setHex(fogC);
   scene.background = new Color(sky);
   keyLight.color.setHex(fx.key);
-  keyLight.intensity = fx.keyI / PI;
+  keyLight.intensity = fx.keyI;
   ambient.color.setHex(fx.hemiSky);
   ambient.groundColor.setHex(fx.hemiGround);
   // IBL adds diffuse fill, so the hemisphere backs off to keep exposure stable.
-  ambient.intensity = (fx.hemiI * (look.reflections ? 0.7 : 1)) / PI;
+  ambient.intensity = fx.hemiI * (look.reflections ? 0.7 : 1);
   // Light direction: toward the sun, so shadows fall away from it.
   keyDir.set(fx.sun[0], Math.max(0.35, fx.sun[1]), fx.sun[2]).normalize();
   w.glowMat.color.setHex(hc ? 0xffff00 : theme.accent);
@@ -688,13 +691,10 @@ function updateExhaust(w: World, state: State, px: number, pos: number, dt: numb
 }
 
 /** render.js render(): one frame of the state, `alpha` of a step past it (interpolation). */
-export function update(state: State | null, alpha: number, dtIn: number, width: number, height: number, dpr = 1): void {
+export function update(state: State | null, alpha: number, dtIn: number, width: number, height: number, _dpr = 1): void {
   const w = world;
   if (!w || !look || !state) return;
   if (width > 0 && height > 0) camera.aspect = width / height;
-  // three.js sizes attenuated points by size × pixel ratio × half the CSS height; the engine (1.24.0) takes
-  // half the window's physical height, so the pixel ratio counts twice (repro in the port report): divide it out once.
-  (w.exhaust.material as PointsMaterial).size = 0.5 / Math.max(1, dpr);
   camera.updateProjectionMatrix();
   const dt = Math.min(0.05, dtIn || 0.016);
   if (!reducedMotion) clock += dt;
@@ -785,8 +785,9 @@ export function update(state: State | null, alpha: number, dtIn: number, width: 
   camera.position.set(x, y, pos - 11.5 - boostPull);
   camera.lookAt(px * 0.5, 1.1, pos + 14 + boostPull * 3);
 
-  // The key light follows the player (the old shadow box ±34 m around pos + 16).
-  const cz = pos + 16;
+  // The key light follows the player: the shadow box ±34 m around pos + 16, snapped to whole texels.
+  const texel = keyLight.castShadow ? (SHADOW_EXTENT * 2) / Number(keyLight.shadow.mapSize) : 1;
+  const cz = Math.round((pos + 16) / texel) * texel;
   keyLight.target.position.set(0, 0, cz);
   keyLight.position.set(keyDir.x * 60, keyDir.y * 60, cz + keyDir.z * 60);
 }
