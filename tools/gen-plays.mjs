@@ -2,7 +2,7 @@
 // (tests/native/*.play): a bot plays the stage with the browser build's rules
 // (src/rules.js, src/content.js — the reference solver's cautious lane policy
 // plus a boost on long clear stretches) and its commands become timed key
-// lines. Timing on the engine (measured, 1.23.0): after the `until` that sees
+// lines. Timing on the engine (measured, 1.24.0): after the `until` that sees
 // the run's HUD, the first key line acts on tick 2; every line takes one
 // frame (one fixed step) and `frames N` takes N + 1, and a command lands on
 // the tick its key line acts on (session.sendCommand), so the script replays
