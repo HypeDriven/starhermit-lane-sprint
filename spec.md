@@ -7,7 +7,7 @@
 | Genre | Single-player arcade lane-switching racer, short stages |
 | Players | 1; scores posted to the StarHermit high-score board |
 | Session length | 25–70 s per stage; 3–10 min per sitting |
-| Platforms | StarHermit engine 1.24.0 (host API 1.21): the native StarHermit client and browsers (the engine's web runtime), desktop and mobile, portrait and landscape |
+| Platforms | StarHermit engine 1.28.0 (host API 1.30): the native StarHermit client and browsers (the engine's web runtime), desktop and mobile, portrait and landscape |
 | Rendering | `starhermit:scene` (three.js-like) road under an immediate-mode `starhermit:ui` shell |
 | Simulation | Fixed 60 Hz deterministic step on the runtime's fixed updates, seeded PRNG, replayable |
 
@@ -15,7 +15,7 @@
 
 | Path | Responsibility |
 |---|---|
-| `starhermit.txt` | Manifest: `engine.entry=native/main.ts`, `engine.version=1.24.0`, `engine.minor=19`, capabilities `platform,storage,clipboard`, `control.*` keys and `engine.gamepad.*` pads per action, `server=score-script.js`. |
+| `starhermit.txt` | Manifest: `engine.entry=native/main.ts`, `engine.version=1.28.0`, `engine.minor=30`, capabilities `platform,storage,clipboard`, `control.*` keys and `engine.gamepad.*` pads per action, `server=score-script.js`. |
 | `index.html`, `starhermit-files.json` | The engine's web loader and file index, written by `npm run package` (never edit; re-run after every change). |
 | `native/main.ts` | Entry: phase machine (title with attract scene → play ⇄ paused → results), input, fixed-step loop, results, lifecycle. |
 | `native/screens.ts` | Every screen and the HUD in `starhermit:ui`. |

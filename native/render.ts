@@ -553,7 +553,7 @@ function applyGrade(): void {
   // and cool shadows, a blue night tint on the night theme, the 0.24 vignette (off in high contrast).
   const n = themeId === "night" ? [0.955, 0.976, 1.036] : [1, 1, 1];
   renderer.grade = {
-    space: "linear", contrast: 0.22, saturation: 1.1, split: [0.2, 0.8], overRange: "keep",
+    space: "linear", contrastCurve: "s", contrast: 0.22, saturation: 1.1, split: [0.2, 0.8], overRange: "keep",
     shadows: [0.96 * n[0]!, 0.98 * n[1]!, 1.05 * n[2]!], highlights: [1.04 * n[0]!, 1.0 * n[1]!, 0.96 * n[2]!],
     vignette: { amount: highContrast ? 0 : 0.24, inner: 0.38, outer: 0.9, scale: [1, 1] },
   };
@@ -568,8 +568,8 @@ export function applyLook(next: Look): void {
     denoise: { lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: next.ao === "high" ? 6 : 4, rings: 2, samples: next.ao === "high" ? 16 : 8, radiusExponent: 2 },
   };
   // High threshold: only lamps, lights, pads and the sun bloom.
-  // r170 page: UnrealBloomPass 0.45 → 0.45² at minor 29 (r185 bloom).
-  renderer.bloom = next.bloom ? { strength: 0.45 * 0.45, radius: 0.4, threshold: 0.95, resolution: next.budget.bloomRes } : null;
+  // minor 30: bloom model "r176" (the r170 page's UnrealBloomPass) at the page strength 0.45.
+  renderer.bloom = next.bloom ? { model: "r176", strength: 0.45, radius: 0.4, threshold: 0.95, resolution: next.budget.bloomRes } : null;
   renderer.antialias = next.antialias;
   renderer.shadowMap.enabled = next.shadows > 0;
   keyLight.castShadow = next.shadows > 0;
