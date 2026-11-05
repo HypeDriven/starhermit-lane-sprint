@@ -164,9 +164,7 @@ Panels are centred, at most 560 px wide, and scroll inside when taller than the 
 | low | off (blob shadows) | off | off | MSAA | off | plain | half the speed lines | Lambert, ½, ½, 2 |
 | balanced | 1024 | off | on | FXAA | on | detailed | exhaust + all lines | Standard, ¾, ¾, 3 |
 | high | 2048 | on | on | SMAA | on | detailed | exhaust + all lines | clear-coated Physical, 1, 1, 4 |
-| ultra | 4096 | high | on | MSAA | on | detailed | exhaust + all lines | clear-coated Physical, 1.5, 1, 5 |
-
-Low keeps MSAA although the engine's quantum level asks for none: engine 1.36.1's anti-aliasing "off" recolours fog and translucent overlays (until engine 1.36.2). Exhaust points and speed lines grow with the level's particle budget over the tier's anchor level (≤ 2×). Bloom (threshold 0.95: lights, lamps, pads, the sun), GTAO and the grade (S-curve 0.22, saturation 1.1, warm highlights / cool shadows, a blue tint at night, 0.24 vignette) are `renderer.bloom / ao / grade`. Render scale, the pixel-ratio cap, adaptive resolution and the frame-rate limit and readout are the runtime's. **Reduced motion** (runtime option) makes lane changes near-instant without bank, stops the bob, drift, pad pulse and cloud motion, and drops the crash shake, speed lines and exhaust.
+| ultra | 4096 | high | on | MSAA | on | detailed | exhaust + all lines | clear-coated Physical, 1.5, 1, 5 | Exhaust points and speed lines grow with the level's particle budget over the tier's anchor level (≤ 2×). Bloom (threshold 0.95: lights, lamps, pads, the sun), GTAO and the grade (S-curve 0.22, saturation 1.1, warm highlights / cool shadows, a blue tint at night, 0.24 vignette) are `renderer.bloom / ao / grade`. Render scale, the pixel-ratio cap, adaptive resolution and the frame-rate limit and readout are the runtime's. **Reduced motion** (runtime option) makes lane changes near-instant without bank, stops the bob, drift, pad pulse and cloud motion, and drops the crash shake, speed lines and exhaust.
 
 ## 9. Audio direction
 
