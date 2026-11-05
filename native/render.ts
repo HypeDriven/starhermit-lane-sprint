@@ -563,17 +563,18 @@ export function applyLook(next: Look): void {
   if (look && JSON.stringify(look) === JSON.stringify(next)) return;
   const before = look;
   look = next;
-  renderer.ao = next.ao === "off" ? null : {
-    blendIntensity: 0.7, radius: 0.9, distanceExponent: 1.5, thickness: 1.5, scale: 1.0, samples: next.ao === "high" ? 16 : 8, resolution: next.budget.aoRes,
-    denoise: { lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: next.ao === "high" ? 6 : 4, rings: 2, samples: next.ao === "high" ? 16 : 8, radiusExponent: 2 },
+  const ao = next.ao, full = !!ao && ao.resolution >= 1; // full-resolution AO: the old "high"
+  renderer.ao = ao && {
+    blendIntensity: 0.7, radius: 0.9, distanceExponent: 1.5, thickness: 1.5, scale: 1.0, samples: ao.samples, resolution: ao.resolution,
+    denoise: { lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: full ? 6 : 4, rings: 2, samples: ao.denoiseSamples, radiusExponent: 2 },
   };
   // High threshold: only lamps, lights, pads and the sun bloom.
   // minor 30: bloom model "r176" (the r170 page's UnrealBloomPass) at the page strength 0.45.
-  renderer.bloom = next.bloom ? { model: "r176", strength: 0.45, radius: 0.4, threshold: 0.95, resolution: next.budget.bloomRes } : null;
+  renderer.bloom = next.bloom === null ? null : { model: "r176", strength: 0.45, radius: 0.4, threshold: 0.95, resolution: next.bloom };
   renderer.antialias = next.antialias;
   renderer.shadowMap.enabled = next.shadows > 0;
   keyLight.castShadow = next.shadows > 0;
-  if (next.shadows > 0) keyLight.shadow.mapSize = next.shadows;
+  if (next.shadows > 0) keyLight.shadow.mapSize = next.shadows; // the level's size (the engine keeps the game's at minor 23+)
   const b = before?.budget, nb = next.budget;
   if (!world || !b || b.material !== nb.material || b.segments !== nb.segments || before!.detailed !== next.detailed
     || before!.reflections !== next.reflections || b.sparks !== nb.sparks) {

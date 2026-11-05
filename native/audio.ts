@@ -6,9 +6,9 @@
 // "effects" bus and the menu clicks on "interface". The oscillator blips the
 // browser build synthesized while a sample decoded are not ported (a live
 // synthesis graph makes clip loads fail on the engine's web runtime), so a
-// clip still loading is silent. Clips load once the mixer runs (natively at
-// once, in a browser after the first press), one at a time.
-import { context, loadClip, play as playClip, type AudioClip } from "starhermit:audio";
+// clip still loading is silent. Every clip starts loading at start-up (the
+// mixer takes them before it runs).
+import { loadClip, play as playClip, type AudioClip } from "starhermit:audio";
 
 const SFX_BY_EVENT: Record<string, string[]> = {
   lane: ["lane-whoosh-soft", "lane-whoosh-quick", "lane-whoosh-deep"],
@@ -20,14 +20,15 @@ const SFX_BY_EVENT: Record<string, string[]> = {
   ui: ["ui-select", "ui-back"],
 };
 const clips = new Map<string, AudioClip>();
-const queue: string[] = [];
 const cursor = new Map<string, number>();
-let loading = false;
-let wantClips = false;
 let suspended = false;
 
-/** Asks for the clips; they load once the mixer runs (see update). */
-export function loadSfx(): void { wantClips = true; }
+/** Loads every clip at once (onStart); a cue whose clip is still loading is skipped. */
+export function loadSfx(): void {
+  for (const list of Object.values(SFX_BY_EVENT)) for (const name of list) {
+    loadClip(`sfx/${name}.opus`).then((c) => { clips.set(name, c); }, (e: unknown) => console.warn(`sfx ${name}: ${String(e)}`));
+  }
+}
 /** Pause and a hidden window: no new sounds. */
 export function setSuspended(on: boolean): void { suspended = on; }
 
@@ -42,21 +43,7 @@ export function event(name: string): void {
     const clip = clips.get(file);
     if (!clip) continue;
     try { playClip(clip, { bus: name === "ui" ? "interface" : "effects" }); }
-    catch { clips.delete(file); if (!queue.includes(file)) queue.push(file); } // a clip the mixer lost: load it again
+    catch { /* the mixer is full this frame: skip it */ }
     return;
   }
-}
-
-/** Each frame: the clips once the mixer runs, one at a time. */
-export function update(): void {
-  if (context.state !== "running") return;
-  if (wantClips) {
-    wantClips = false;
-    for (const list of Object.values(SFX_BY_EVENT)) for (const n of list) if (!queue.includes(n)) queue.push(n);
-  }
-  if (loading || !queue.length) return;
-  const name = queue.shift()!;
-  if (clips.has(name)) return;
-  loading = true;
-  loadClip(`sfx/${name}.opus`).then((c) => { clips.set(name, c); loading = false; }, (e: unknown) => { console.warn(`sfx ${name}: ${String(e)}`); loading = false; });
 }

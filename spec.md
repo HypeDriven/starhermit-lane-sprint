@@ -20,7 +20,7 @@
 | `native/main.ts` | Entry: phase machine (title with attract scene → play ⇄ paused → results), input, fixed-step loop, results, lifecycle. |
 | `native/screens.ts` | Every screen and the HUD in `starhermit:ui`. |
 | `native/render.ts` | The road, cars, scenery, sky (WGSL), effects, camera and the post chain on `starhermit:scene`. |
-| `native/quality.ts` | The four looks (old presets and budgets) per runtime quality tier and level. |
+| `native/quality.ts` | The look per graphics level: the engine level's effects plus the old art presets and budgets per quality tier. |
 | `native/platform.ts` | Progress save and cloud merge, old-save migration, player/avatar/invite, server clock, score posting. |
 | `native/audio.ts`, `native/i18n.ts`, `native/style.ts`, `native/game.ts` | Sound clips per event; locale from the runtime; UI style registration and high-contrast tokens; types over the pure modules. |
 | `src/rules.js` | Pure rules: state, legality, fixed step, collision, scoring, hashing, PRNG. |
@@ -157,7 +157,7 @@ Panels are centred, at most 560 px wide, and scroll inside when taller than the 
 
 **Shape language and motion** are the browser build's: chunky cars (rounded bodies with lights, hubs and bumpers on detailed scenery; the player `#ffcc33` with a spoiler), teal pads with white chevrons, lane-change banking, the 5.4 m-high chase camera pulling back 2.2 m while boosting, a crash roll and shake, speed lines and additive exhaust while boosting, pulsing pads, an idle bob.
 
-**Graphics levels.** The runtime's Options choose a graphics level (Auto by the device); `native/quality.ts` maps its quality tier to the old presets:
+**Graphics levels.** The runtime's Options choose a graphics level (Auto by the device). Shadows and their map size, AO, bloom, the grade and anti-aliasing are the level's own (`levelSettings()`, the engine's table every StarHermit game reads; the table shows each tier's anchor level, and levels above an anchor raise them, e.g. High at stellar gets 4096 shadows and full-resolution AO); `native/quality.ts` maps the level's quality tier to the old art presets:
 
 | Tier | Shadows | AO | Bloom / grade | AA | Reflections | Scenery detail | Boost effects | Materials, LOD, trees, cloud octaves |
 |---|---|---|---|---|---|---|---|---|
@@ -166,7 +166,7 @@ Panels are centred, at most 560 px wide, and scroll inside when taller than the 
 | high | 2048 | on | on | SMAA | on | detailed | exhaust + all lines | clear-coated Physical, 1, 1, 4 |
 | ultra | 4096 | high | on | MSAA | on | detailed | exhaust + all lines | clear-coated Physical, 1.5, 1, 5 |
 
-Exhaust points and speed lines grow with the level within a tier (≤ 2×). Bloom (threshold 0.95: lights, lamps, pads, the sun), GTAO and the grade (S-curve 0.22, saturation 1.1, warm highlights / cool shadows, a blue tint at night, 0.24 vignette) are `renderer.bloom / ao / grade`. Render scale, the pixel-ratio cap, adaptive resolution and the frame-rate limit and readout are the runtime's. **Reduced motion** (runtime option) makes lane changes near-instant without bank, stops the bob, drift, pad pulse and cloud motion, and drops the crash shake, speed lines and exhaust.
+Low keeps MSAA although the engine's quantum level asks for none: engine 1.36.1's anti-aliasing "off" recolours fog and translucent overlays (until engine 1.36.2). Exhaust points and speed lines grow with the level's particle budget over the tier's anchor level (≤ 2×). Bloom (threshold 0.95: lights, lamps, pads, the sun), GTAO and the grade (S-curve 0.22, saturation 1.1, warm highlights / cool shadows, a blue tint at night, 0.24 vignette) are `renderer.bloom / ao / grade`. Render scale, the pixel-ratio cap, adaptive resolution and the frame-rate limit and readout are the runtime's. **Reduced motion** (runtime option) makes lane changes near-instant without bank, stops the bob, drift, pad pulse and cloud motion, and drops the crash shake, speed lines and exhaust.
 
 ## 9. Audio direction
 

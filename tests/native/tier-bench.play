@@ -1,0 +1,14 @@
+# Graphics-tier bench (tools/engine-tier-bench.mjs): stage 1 (fixed stage) measured in play: the bot's
+# lane change and a boost (exhaust, speed lines) past traffic, scenery and pads.
+until 300 Lane Sprint
+frames 30
+click =Play stage 1
+until 60 Boost ready
+frames 120
+measure start
+frames 166
+key ArrowLeft 1
+frames 0
+key Space 1
+frames 490
+measure stop

@@ -19,7 +19,7 @@
 // the tick they were pressed on, as before (session.sendCommand), and the
 // road is drawn between steps by the frame's interpolation.
 import "./i18n.ts";
-import { clipboard, frame, onFixedUpdate, onPreferencesChange, onRender, onResume, onStart, onSuspend, onUpdate, preferences, setFixedRate } from "starhermit:engine";
+import { clipboard, frame, levelSettings, onFixedUpdate, onPreferencesChange, onRender, onResume, onStart, onSuspend, onUpdate, preferences, setFixedRate } from "starhermit:engine";
 import { bindings, isDown, onAction, onPointerButton, onTouch, primaryPointer } from "starhermit:input";
 import * as ui from "starhermit:ui";
 import { onSessionEnded, requestSignIn } from "starhermit:platform";
@@ -272,10 +272,10 @@ onAction((e) => {
 let lookKey = "";
 function applyLook(): void {
   const f = frame();
-  const k = `${f.quality}:${f.levelIndex}`;
+  const k = f.level;
   if (k === lookKey) return;
   lookKey = k;
-  render.applyLook(lookFor(f.quality, f.levelIndex));
+  render.applyLook(lookFor(levelSettings(f.level)));
 }
 
 onStart(() => {
@@ -320,7 +320,6 @@ onUpdate((dt) => {
   const hc = ui.preferences().highContrast;
   applyContrast(hc);
   render.setHighContrast(hc);
-  audio.update();
   if (app.toast && app.toast.until < now()) app.toast = null;
 });
 onRender((alpha) => {
