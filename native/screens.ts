@@ -25,11 +25,9 @@ import {
 // ------------------------------------------------------------------ layout
 interface Layout { lw: number; lh: number; sc: number; phone: boolean; short: boolean }
 function layoutNow(): Layout {
-  const f = frame();
-  const sc = ui.preferences().scale;
-  const sa = f.safeArea;
-  const lw = Math.max(1, (f.width - sa.left - sa.right) / sc), lh = Math.max(1, (f.height - sa.top - sa.bottom) / sc);
-  return { lw, lh, sc, phone: lw <= 520, short: lh <= 620 };
+  const v = ui.viewport!();
+  const lw = Math.max(1, v.width), lh = Math.max(1, v.height);
+  return { lw, lh, sc: v.scale, phone: lw <= 520, short: lh <= 620 };
 }
 const lastSize = new Map<string, number>();
 function textWidth(text: string, style: string, kind?: "button" | "heading"): number {
@@ -82,7 +80,6 @@ export function drawScreens(): void {
       case "settings": page("settings", L, settingsScreen); break;
     }
   }
-  toast(L);
   if (app.focusNext) {
     const age = f.frame - app.openedFrame;
     if (age >= 1) ui.setFocus(app.focusNext);
@@ -148,8 +145,8 @@ function titleScreen(w: number, L: Layout): void {
     { id: "btn-help", text: t("help"), act: () => openPage("help") },
     { id: "btn-settings", text: t("settings"), act: () => openPage("settings") },
   ];
-  if (platform.inviteLink()) list.push({ id: "btn-invite", text: t("sh.invite"), act: copyInvite });
-  if (!platform.signedIn()) list.push({ id: "btn-signin", text: t("sh.signIn"), act: signIn });
+  if (platform.inviteLink()) list.push({ id: "btn-invite", text: t("starhermit.invite"), act: copyInvite });
+  if (!platform.signedIn()) list.push({ id: "btn-signin", text: t("starhermit.signIn"), act: signIn });
   flow("title-menu", list, w);
 }
 function helpScreen(w: number): void {
@@ -328,9 +325,3 @@ function resultsPanel(w: number, L: Layout): void {
 }
 
 // ------------------------------------------------------------------ the toast
-function toast(L: Layout): void {
-  const tt = app.toast;
-  if (!tt) return;
-  const w = Math.min(L.lw - 32, 520);
-  ui.place("toast", { anchor: "bottom", y: 16 }, () => ui.column("toast-col", () => para(tt.text, w - 32, "toast-text", "toast-text"), { style: "toast", align: "center" }));
-}

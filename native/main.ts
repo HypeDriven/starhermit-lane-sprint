@@ -52,7 +52,6 @@ export const app = {
   isDaily: false,
   results: null as Results | null,
   lb: null as { posted: boolean; rank: number | null } | "posting" | null,
-  toast: null as { text: string; until: number } | null,
 };
 const now = (): number => frame().time;
 
@@ -66,8 +65,7 @@ export function announce(text: string): void {
 }
 /** ui.js toast(): 3.5 s over any screen. */
 export function toast(text: string): void {
-  app.toast = { text, until: now() + 3.5 };
-  ui.announce(text, { politeness: "polite" });
+  ui.toast!(text, { duration: 3.5, style: ["toast", "toast-text"], dismissible: false });
 }
 export function click(): void { audio.event("ui"); }
 export function progress(): platform.Progress { return platform.progress(); }
@@ -210,15 +208,15 @@ function endStage(): void {
 export function leaderboardLine(): string | null {
   const r = app.lb;
   if (!r) return null;
-  if (r === "posting") return t("sh.lbPosting");
-  return !r.posted ? t("sh.lbNotPosted") : r.rank ? t("sh.lbRank", { rank: r.rank }) : t("sh.lbPosted");
+  if (r === "posting") return t("starhermit.leaderboardPosting");
+  return !r.posted ? t("starhermit.leaderboardNotPosted") : r.rank ? t("starhermit.leaderboardRank", { rank: r.rank }) : t("starhermit.leaderboardPosted");
 }
 
 export function copyInvite(): void {
   click();
   const link = platform.inviteLink();
   if (!link) return;
-  try { clipboard.writeText(link); toast(t("sh.copied")); } catch { toast(t("sh.copyFailed", { link })); }
+  try { clipboard.writeText(link); toast(t("starhermit.inviteCopied")); } catch { toast(t("starhermit.inviteLink", { link })); }
 }
 export function signIn(): void { click(); void requestSignIn().catch(() => undefined); }
 
@@ -289,7 +287,7 @@ onStart(() => {
   goTitle();
 });
 onPreferencesChange((p) => render.setReducedMotion(p.reducedMotion));
-onSessionEnded(() => toast(t("sh.signedOut")));
+onSessionEnded(() => toast(t("starhermit.signedOut")));
 platform.onProgressMerged(() => { if (app.screen === "title" && !app.overlay) goTitle(); });
 let hidden = false;
 onSuspend(() => {
@@ -320,7 +318,6 @@ onUpdate((dt) => {
   const hc = ui.preferences().highContrast;
   applyContrast(hc);
   render.setHighContrast(hc);
-  if (app.toast && app.toast.until < now()) app.toast = null;
 });
 onRender((alpha) => {
   hudRects.length = 0;

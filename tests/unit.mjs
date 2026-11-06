@@ -13,7 +13,7 @@ const src = (f) => join(ROOT, 'src', f);
 const rules = await import(src('rules.js'));
 const content = await import(src('content.js'));
 const session = await import(src('session.js'));
-const i18n = await import(src('i18n.js'));
+const TABLES = JSON.parse(fsMod.readFileSync(join(ROOT, 'assets/strings.json'), 'utf8'));
 
 let passed = 0;
 const failures = [];
@@ -166,10 +166,8 @@ await test('advance is frame-rate independent for the same elapsed time', () => 
 	assert.equal(session.snapshot(fine).tick, session.snapshot(coarse).tick);
 });
 
-await test('every locale defines every string key', () => {
-	const missing = i18n.missingKeys();
-	assert.deepEqual(missing, {}, `missing translations: ${JSON.stringify(missing)}`);
-	assert.equal(i18n.availableLocales().length, 9);
+await test('the nine locales ship', () => {
+	assert.equal(Object.keys(TABLES).length, 9);
 });
 
 await test('every key the engine client shows is authored in all nine locales (no silent English fallback)', () => {
@@ -178,37 +176,21 @@ await test('every key the engine client shows is authored in all nine locales (n
 	for (const f of readdirSync(join(ROOT, 'native'))) {
 		if (!f.endsWith('.ts')) continue;
 		const code = readFileSync(join(ROOT, 'native', f), 'utf8');
-		for (const m of code.matchAll(/\bt\(\s*"([^"]+)"/g)) used.add(m[1]);
+		for (const m of code.matchAll(/\bt\(\s*"([^"]+)"/g)) if (!m[1].startsWith('starhermit.')) used.add(m[1]);
 	}
 	assert.ok(used.size > 50, 'only ' + used.size + ' keys found');
-	const en = i18n.AUTHORED['en-US'];
+	const en = TABLES['en-US'];
 	assert.deepEqual([...used].filter((k) => !(k in en)), [], 'keys used but not defined');
 	assert.deepEqual(Object.keys(en).filter((k) => !used.has(k)), [], 'keys defined but never shown');
 	// en-GB intentionally inherits US spellings; the game name is not translated.
 	for (const id of ['es-419', 'es-ES', 'de-DE', 'fr-FR', 'fr-CA', 'pt-BR', 'it-IT']) {
-		const missing = Object.keys(en).filter((k) => k !== 'title' && !(k in i18n.AUTHORED[id]));
+		const missing = Object.keys(en).filter((k) => k !== 'title' && !(k in TABLES[id]));
 		assert.deepEqual(missing, [], id + ' falls back to English for these keys');
 	}
 });
 
-await test('locale negotiation maps browser tags to shipped locales', () => {
-	assert.equal(i18n.negotiateLocale(null, ['pt-BR']), 'pt-BR');
-	assert.equal(i18n.negotiateLocale(null, ['es-MX']), 'es-419');
-	assert.equal(i18n.negotiateLocale(null, ['es-ES']), 'es-ES');
-	assert.equal(i18n.negotiateLocale(null, ['fr-CA']), 'fr-CA');
-	assert.equal(i18n.negotiateLocale(null, ['en-GB']), 'en-GB');
-	assert.equal(i18n.negotiateLocale(null, ['xx-YY']), 'en-US');
-	assert.equal(i18n.negotiateLocale('de-DE', ['en-US']), 'de-DE');
-});
-
-await test('interpolation substitutes parameters in each locale', () => {
-	for (const l of i18n.availableLocales()) {
-		i18n.setLocale(l.id);
-		const s = i18n.t('stage', { n: 7 });
-		assert.ok(s.includes('7'), `${l.id} lost the {n} parameter: ${s}`);
-		assert.ok(!s.includes('{'), `${l.id} left an unsubstituted placeholder: ${s}`);
-	}
-	i18n.setLocale('en-US');
+await test('placeholders survive in each locale', () => {
+	for (const [id, table] of Object.entries(TABLES)) if (table.stage) assert.ok(table.stage.includes('{n}'), id);
 });
 
 

@@ -27,7 +27,7 @@
 | `src/content.js` | 40 authored stages, Daily stage, 5 themes, offline validator and reference solver. |
 | `src/session.js` | Command log, fixed-step advance, replay envelope, snapshots, replay verification. |
 | `src/progress.js` | The progress document: normalize, merge, old cloud doc, bests, unlocks. |
-| `src/i18n.js` | String tables in the nine locales. |
+| `assets/strings.json` | String tables in the nine locales, read by the engine's `strings`; account lines are its `starhermit.*`. |
 | `assets/ui-style.json` | `tools/ui-style.css` converted by `starhermit css` (`npm run css`). |
 | `assets/textures/*.png` | Asphalt and verge detail maps baked from the old canvas painters (`tools/bake-textures.mjs`). |
 | `score-script.js` | Server script: range-checks a run's `high-score` and returns it (the only source of leaderboard scores). |
@@ -186,7 +186,7 @@ Format: 48 kHz mono Opus, 96 kbps VBR, loudness-normalized, generated with MOSS-
 
 ## 10. Localization
 
-All strings are in `src/i18n.js` in en-US, en-GB, es-419, es-ES, de-DE, fr-FR, fr-CA, pt-BR and it-IT; the language is the runtime's (Options › Language, else the account's or the device's) and switches on the next frame. `npm test` checks that every key the client shows is authored in every locale.
+All strings are in `assets/strings.json` in en-US, en-GB, es-419, es-ES, de-DE, fr-FR, fr-CA, pt-BR and it-IT; the language is the runtime's (Options › Language, else the account's or the device's) and switches on the next frame. `npm test` checks that every key the client shows is authored in every locale.
 
 ## 11. Accessibility
 
@@ -196,7 +196,7 @@ Every control is a focusable widget with a name; the progress bar is a meter; th
 
 - **Saves:** the progress document `{ highestStage, bestScores, dailyBest }` is the engine save (device at once, account debounced). A conflict between devices merges (furthest stage, best per stage and per day). The browser build's cloud slot (`game:<slug>`, its whole store document as JSON) shows as foreign and is merged in and replaced once. Guests' old browser localStorage progress does not migrate.
 - **Settings:** the old account-settings keys (`reducedMotion`, `highContrast`, `sound`, `graphics`, `ui.language`) are removed; those choices are the runtime's Options now.
-- **Leaderboard:** after every run (finished or crashed) a signed-in player's total is sent through a practice session to `score-script.js`, which range-checks it (0–100 000) and returns it as the `high-score` score — the server script is the only source of scores; the results show the posting state and the rank.
+- **Leaderboard:** after every run (finished or crashed) a signed-in player's total is sent with `leaderboards.submitScore` to `score-script.js`, which range-checks it (0–100 000) and returns it as the `high-score` score — the server script is the only source of scores; the results show the posting state and the rank.
 - **Player:** display name, avatar, invite link (copied to the clipboard), Sign in for guests, a toast when signed out.
 - **Clock:** the Daily's day by `serverNow()`, falling back to the device's UTC date.
 
