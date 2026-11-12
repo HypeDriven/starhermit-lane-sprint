@@ -1,3 +1,4 @@
+import { withLanguageRender as __l10nRender } from "./l10n/menu.ts";
 // Lane Sprint on the StarHermit engine: the entry module (starhermit.txt
 // engine.entry), played natively by the StarHermit client and in browsers by
 // the engine's web runtime. The rules (src/rules.js), content
@@ -319,11 +320,15 @@ onUpdate((dt) => {
   applyContrast(hc);
   render.setHighContrast(hc);
 });
-onRender((alpha) => {
+onRender(__l10nRender((alpha) => {
   hudRects.length = 0;
   drawScreens();
   pointerInput();
   const f = frame();
   const s = app.session;
   render.update(s ? s.state : null, playing() ? Math.min(1, Math.max(0, alpha)) : 0, frameDt, f.width, f.height, f.scale);
-});
+}));
+
+// localization-runtime:menu
+import { installLanguageMenu as __installLanguageMenu } from "./l10n/menu.ts";
+__installLanguageMenu(false);
