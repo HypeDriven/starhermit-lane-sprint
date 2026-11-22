@@ -572,6 +572,7 @@ export function applyLook(next: Look): void {
   // minor 30: bloom model "r176" (the r170 page's UnrealBloomPass) at the page strength 0.45.
   renderer.bloom = next.bloom === null ? null : { model: "r176", strength: 0.45, radius: 0.4, threshold: 0.95, resolution: next.bloom };
   renderer.antialias = next.antialias;
+  renderer.motionBlur = next.bloom !== null ? { intensity: 0.25, samples: 8, maxPixels: 16, targetFps: 60, camera: false } : null;
   renderer.shadowMap.enabled = next.shadows > 0;
   keyLight.castShadow = next.shadows > 0;
   if (next.shadows > 0) keyLight.shadow.mapSize = next.shadows; // the level's size (the engine keeps the game's at minor 23+)

@@ -7,7 +7,7 @@
 | Genre | Single-player arcade lane-switching racer, short stages |
 | Players | 1; scores posted to the StarHermit high-score board |
 | Session length | 25–70 s per stage; 3–10 min per sitting |
-| Platforms | StarHermit engine 1.44.1 (host API 1.44): the native StarHermit client and browsers (the engine's web runtime), desktop and mobile, portrait and landscape |
+| Platforms | StarHermit engine 1.47.0 (host API 1.47): the native StarHermit client and browsers (the engine's web runtime), desktop and mobile, portrait and landscape |
 | Rendering | `starhermit:scene` (three.js-like) road under an immediate-mode `starhermit:ui` shell |
 | Simulation | Fixed 60 Hz deterministic step on the runtime's fixed updates, seeded PRNG, replayable |
 
@@ -15,7 +15,7 @@
 
 | Path | Responsibility |
 |---|---|
-| `starhermit.txt` | Manifest: `engine.entry=native/main.ts`, `engine.version=1.44.1`, `engine.minor=44`, capabilities `platform,storage,clipboard`, `control.*` keys and `engine.gamepad.*` pads per action, `server=score-script.js`. |
+| `starhermit.txt` | Manifest: `engine.entry=native/main.ts`, `engine.version=1.47.0`, `engine.minor=47`, capabilities `platform,storage,clipboard`, `control.*` keys and `engine.gamepad.*` pads per action, `server=score-script.js`. |
 | `index.html`, `starhermit-files.json` | The engine's web loader and file index, written by `npm run package` (never edit; re-run after every change). |
 | `native/main.ts` | Entry: phase machine (title with attract scene → play ⇄ paused → results), input, fixed-step loop, results, lifecycle. |
 | `native/screens.ts` | Every screen and the HUD in `starhermit:ui`. |
@@ -27,7 +27,7 @@
 | `src/content.js` | 40 authored stages, Daily stage, 5 themes, offline validator and reference solver. |
 | `src/session.js` | Command log, fixed-step advance, replay envelope, snapshots, replay verification. |
 | `src/progress.js` | The progress document: normalize, merge, old cloud doc, bests, unlocks. |
-| `assets/strings.json` | String tables in the nine locales, read by the engine's `strings`; account lines are its `starhermit.*`. |
+| `assets/strings.json` | String tables in the nine required locales and complete regional variants, read by the engine's `strings`; account lines are its `starhermit.*`. |
 | `assets/ui-style.json` | `tools/ui-style.css` converted by `starhermit css` (`npm run css`). |
 | `assets/textures/*.png` | Asphalt and verge detail maps baked from the old canvas painters (`tools/bake-textures.mjs`). |
 | `score-script.js` | Server script: range-checks a run's `high-score` and returns it (the only source of leaderboard scores). |
@@ -246,8 +246,12 @@ The string tables include complete regional variants for `en-SG`, `en-HK`, `en-B
 
 <!-- regional-localization:end -->
 
-## Engine 1.44.1
+## Engine 1.47.0
 
-Browser play uses the WebGPU-only StarHermit 1.44.1 web runtime. Automatic ray-traced shadows are enabled on supported Vulkan devices, with mapped-shadow fallbacks elsewhere. Packaging creates block-compressed runtime textures and compressed glTF copies, retaining original image fallbacks.
+Browser play uses the WebGPU-only StarHermit 1.47.0 web runtime. Automatic ray-traced shadows are enabled on supported Vulkan devices, with mapped-shadow fallbacks elsewhere. Packaging creates block-compressed runtime textures and compressed glTF copies, retaining original image fallbacks.
 
 The help screen replays through retained native UI while its contents, options, layout and key bindings are unchanged.
+
+Browser rendering uses the engine's asynchronous pipeline creation so newly encountered materials do not stall the page. Native play retains the engine's synchronous pipeline behavior.
+
+Higher graphics tiers use native per-object motion blur for moving pieces and effects. Camera motion stays sharp, lower tiers omit the effect, and the runtime's Motion blur and Reduce motion preferences remain authoritative.

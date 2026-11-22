@@ -166,11 +166,11 @@ await test('advance is frame-rate independent for the same elapsed time', () => 
 	assert.equal(session.snapshot(fine).tick, session.snapshot(coarse).tick);
 });
 
-await test('the nine locales ship', () => {
-	assert.equal(Object.keys(TABLES).length, 9);
+await test('the required and regional locales ship', () => {
+	for (const loc of ['en-US', 'en-GB', 'es-419', 'es-ES', 'de-DE', 'fr-FR', 'fr-CA', 'pt-BR', 'it-IT']) assert.ok(TABLES[loc], loc);
 });
 
-await test('every key the engine client shows is authored in all nine locales (no silent English fallback)', () => {
+await test('every key the engine client shows is authored in every shipped locale (no silent English fallback)', () => {
 	const { readdirSync, readFileSync } = fsMod;
 	const used = new Set(['syncSynced', 'syncSaving', 'syncError', 'syncOffline']); // shown through a lookup table
 	for (const f of readdirSync(join(ROOT, 'native'))) {
