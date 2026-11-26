@@ -7,7 +7,7 @@
 | Genre | Single-player arcade lane-switching racer, short stages |
 | Players | 1; scores posted to the StarHermit high-score board |
 | Session length | 25–70 s per stage; 3–10 min per sitting |
-| Platforms | StarHermit engine 1.47.0 (host API 1.47): the native StarHermit client and browsers (the engine's web runtime), desktop and mobile, portrait and landscape |
+| Platforms | StarHermit engine 1.50.0 (host API 1.50): the native StarHermit client and browsers (the engine's web runtime), desktop and mobile, portrait and landscape |
 | Rendering | `starhermit:scene` (three.js-like) road under an immediate-mode `starhermit:ui` shell |
 | Simulation | Fixed 60 Hz deterministic step on the runtime's fixed updates, seeded PRNG, replayable |
 
@@ -15,7 +15,7 @@
 
 | Path | Responsibility |
 |---|---|
-| `starhermit.txt` | Manifest: `engine.entry=native/main.ts`, `engine.version=1.47.0`, `engine.minor=47`, capabilities `platform,storage,clipboard`, `control.*` keys and `engine.gamepad.*` pads per action, `server=score-script.js`. |
+| `starhermit.txt` | Manifest: `engine.entry=native/main.ts`, `engine.version=1.50.0`, `engine.minor=50`, capabilities `platform,storage,clipboard`, `control.*` keys and `engine.gamepad.*` pads per action, `server=score-script.js`. |
 | `index.html`, `starhermit-files.json` | The engine's web loader and file index, written by `npm run package` (never edit; re-run after every change). |
 | `native/main.ts` | Entry: phase machine (title with attract scene → play ⇄ paused → results), input, fixed-step loop, results, lifecycle. |
 | `native/screens.ts` | Every screen and the HUD in `starhermit:ui`. |
@@ -246,9 +246,9 @@ The string tables include complete regional variants for `en-SG`, `en-HK`, `en-B
 
 <!-- regional-localization:end -->
 
-## Engine 1.47.0
+## Engine 1.50.0
 
-Browser play uses the WebGPU-only StarHermit 1.47.0 web runtime. Automatic ray-traced shadows are enabled on supported Vulkan devices, with mapped-shadow fallbacks elsewhere. Packaging creates block-compressed runtime textures and compressed glTF copies, retaining original image fallbacks.
+Browser play uses the WebGPU-only StarHermit 1.50.0 web runtime. Automatic ray-traced shadows are enabled on supported Vulkan devices, with mapped-shadow fallbacks elsewhere. Packaging creates block-compressed runtime textures and compressed glTF copies, retaining original image fallbacks.
 
 The help screen replays through retained native UI while its contents, options, layout and key bindings are unchanged.
 
