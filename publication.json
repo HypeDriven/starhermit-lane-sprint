@@ -12,7 +12,7 @@
     "metadataSource": "starhermit.txt",
     "createdAt": "2026-09-01T07:01:02.290422+00:00",
     "coverArtSource": "manifest",
-    "coverArtUpdatedAt": "2026-11-23T17:01:56.480506+00:00",
+    "coverArtUpdatedAt": "2026-11-26T12:47:29.455459+00:00",
     "submittedByUserId": "2712e04e-461b-4d23-81ae-e40b429128a8",
     "submittedByUsername": "starhermit",
     "hosting": {
@@ -22,9 +22,9 @@
       "pinnedCommitSha": null,
       "deployedCommitSha": null,
       "deployError": null,
-      "deployedAt": "2026-11-23T17:01:56.463197+00:00",
+      "deployedAt": "2026-11-26T12:47:29.44472+00:00",
       "externalLaunchUrl": null,
-      "engineVersion": "1.47.0",
+      "engineVersion": "1.50.0",
       "deployWarning": null
     },
     "description": "Weave between three lanes of traffic and use well-timed boosts to race to the finish.",
@@ -36,19 +36,19 @@
     "links": [],
     "isDisabled": false
   },
-  "publishedAt": "2026-11-23T17:01:56.655Z",
-  "sourceCommit": "c382dbd1793eb7eb415eff18f5001abf2b09277d",
-  "bytesReceived": 2782223,
-  "archiveSha256": "31e21b51bfaaab708b824fc0a8b46c1b80a5239734aa8ecae37e8da6bbb0361c",
+  "publishedAt": "2026-11-26T12:47:29.636Z",
+  "sourceCommit": "a0456ef9591cb8a70d1b35daa619fd858b02a8a9",
+  "bytesReceived": 2782221,
+  "archiveSha256": "9c34ac28a7373fe522a6dcab4bffba32b26e1b6f878c74d26ba4fd89c87080d9",
   "indexSha256": "38711839a846609ed387e6de075fa03853914bccf92985926abb60b296dbffb9",
   "result": {
     "clientPublished": true,
     "serverImageLoaded": false,
     "imageDigest": null,
-    "bytesReceived": 2782223,
+    "bytesReceived": 2782221,
     "mode": "replace",
     "filesRemoved": 0,
-    "engineVersion": "1.47.0",
+    "engineVersion": "1.50.0",
     "deployWarning": null
   },
   "liveVerification": {
