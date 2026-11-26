@@ -248,10 +248,14 @@ The string tables include complete regional variants for `en-SG`, `en-HK`, `en-B
 
 ## Engine 1.50.0
 
-Browser play uses the WebGPU-only StarHermit 1.50.0 web runtime. Automatic ray-traced shadows are enabled on supported Vulkan devices, with mapped-shadow fallbacks elsewhere. Packaging creates block-compressed runtime textures and compressed glTF copies, retaining original image fallbacks.
+Browser play uses the StarHermit 1.50.0 web runtime on WebGPU, or WebGL 2 where WebGPU is missing. Automatic ray-traced shadows are enabled on supported Vulkan devices, with mapped-shadow fallbacks elsewhere. Packaging creates block-compressed runtime textures and compressed glTF copies, retaining original image fallbacks.
 
 The help screen replays through retained native UI while its contents, options, layout and key bindings are unchanged.
 
 Browser rendering uses the engine's asynchronous pipeline creation so newly encountered materials do not stall the page. Native play retains the engine's synchronous pipeline behavior.
+
+**Frame rate (host API 1.49 `setTargetFps`).** Under a finger (`primaryPointer() === "coarse"`) the game caps itself at 30 frames a second on the phone graphics levels (`levelIndex` ≤ 3), where steady 33 ms frames replace uneven ones; elsewhere, the title included (the attract drive shows behind it), there is no game cap. The rules step on the fixed update, so the race is unchanged. The engine sets the cap aside while its menus are open, and the player's Frame rate limit still applies.
+
+**Still scenery (host API 1.49).** The finish line and gate are `movable = false`: they move only when a stage's length changes, and that move is signalled with `matrixWorldNeedsUpdate`. Everything else on the endless road scrolls or is recycled with the player and stays movable. The sky's cloud drift keeps its time uniform because it holds under Reduced motion and resets on a still sky.
 
 Higher graphics tiers use native per-object motion blur for moving pieces and effects. Camera motion stays sharp, lower tiers omit the effect, and the runtime's Motion blur and Reduce motion preferences remain authoritative.

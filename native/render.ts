@@ -440,6 +440,10 @@ function buildWorld(): World {
   banner.position.y = 5.0; banner.castShadow = true;
   finishGate.add(banner);
   finishGate.visible = false;
+  // Still scenery (host API 1.49): the finish line and gate stand at the stage's end; update() moves
+  // them only when the stage length changes, and signals it (matrixWorldNeedsUpdate).
+  finishLine.movable = false;
+  finishGate.movable = false;
   root.add(finishLine, finishGate);
 
   // Speed lines: bounded, cosmetic.
@@ -765,9 +769,11 @@ export function update(state: State | null, alpha: number, dtIn: number, width: 
   w.padBaseMat.emissiveIntensity = look.detailed && !reducedMotion ? 1.3 + Math.sin(clock * 5) * 0.5 : 0.8;
 
   w.finishLine.visible = state.stageLength - pos < VIEW_AHEAD;
-  w.finishLine.position.z = state.stageLength;
   w.finishGate.visible = w.finishLine.visible && look.detailed;
-  w.finishGate.position.z = state.stageLength;
+  if (w.finishLine.position.z !== state.stageLength) {
+    w.finishLine.position.z = w.finishGate.position.z = state.stageLength;
+    w.finishLine.matrixWorldNeedsUpdate = w.finishGate.matrixWorldNeedsUpdate = true;
+  }
 
   w.speedLines.visible = !reducedMotion && state.boostActive;
   // Speed lines: the Particles tier × the budget's sparks factor.
