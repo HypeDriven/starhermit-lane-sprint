@@ -7,7 +7,7 @@
 | Genre | Single-player arcade lane-switching racer, short stages |
 | Players | 1; scores posted to the StarHermit high-score board |
 | Session length | 25–70 s per stage; 3–10 min per sitting |
-| Platforms | StarHermit engine 1.51.0 (host API 1.51): the native StarHermit client and browsers (the engine's web runtime), desktop and mobile, portrait and landscape |
+| Platforms | StarHermit engine 1.53.0 (host API 1.53): the native StarHermit client and browsers (the engine's web runtime), desktop and mobile, portrait and landscape |
 | Rendering | `starhermit:scene` (three.js-like) road under an immediate-mode `starhermit:ui` shell |
 | Simulation | Fixed 60 Hz deterministic step on the runtime's fixed updates, seeded PRNG, replayable |
 
@@ -15,7 +15,7 @@
 
 | Path | Responsibility |
 |---|---|
-| `starhermit.txt` | Manifest: `engine.entry=native/main.ts`, `engine.version=1.51.0`, `engine.minor=51`, capabilities `platform,storage,clipboard`, `control.*` keys and `engine.gamepad.*` pads per action, `server=score-script.js`. |
+| `starhermit.txt` | Manifest: `engine.entry=native/main.ts`, `engine.version=1.53.0`, `engine.minor=53`, capabilities `platform,storage,clipboard`, `control.*` keys and `engine.gamepad.*` pads per action, `server=score-script.js`. |
 | `index.html`, `starhermit-files.json` | The engine's web loader and file index, written by `npm run package` (never edit; re-run after every change). |
 | `native/main.ts` | Entry: phase machine (title with attract scene → play ⇄ paused → results), input, fixed-step loop, results, lifecycle. |
 | `native/screens.ts` | Every screen and the HUD in `starhermit:ui`. |
@@ -246,16 +246,18 @@ The string tables include complete regional variants for `en-SG`, `en-HK`, `en-B
 
 <!-- regional-localization:end -->
 
-## Engine 1.51.0
+## Engine 1.53.0
 
-Browser play uses the StarHermit 1.51.0 web runtime on WebGPU, or WebGL 2 where WebGPU is missing. Automatic ray-traced shadows are enabled on supported Vulkan devices, with mapped-shadow fallbacks elsewhere. Packaging creates block-compressed runtime textures and compressed glTF copies, retaining original image fallbacks.
+Browser play uses the StarHermit 1.53.0 web runtime on WebGPU, or WebGL 2 where WebGPU is missing. Automatic ray-traced shadows are enabled on supported Vulkan devices, with mapped-shadow fallbacks elsewhere. Packaging creates block-compressed runtime textures and compressed glTF copies, retaining original image fallbacks.
 
 The help screen replays through retained native UI while its contents, options, layout and key bindings are unchanged.
 
 Browser rendering uses the engine's asynchronous pipeline creation so newly encountered materials do not stall the page. Native play retains the engine's synchronous pipeline behavior.
 
-**Frame rate (host API 1.51 `setTargetFps`).** Under a finger (`primaryPointer() === "coarse"`) the game caps itself at 30 frames a second on the phone graphics levels (`levelIndex` ≤ 3), where steady 33 ms frames replace uneven ones; elsewhere, the title included (the attract drive shows behind it), there is no game cap. The rules step on the fixed update, so the race is unchanged. The engine sets the cap aside while its menus are open, and the player's Frame rate limit still applies.
+**Frame rate (host API 1.53 `setTargetFps`).** Under a finger (`primaryPointer() === "coarse"`) the game caps itself at 30 frames a second on the phone graphics levels (`levelIndex` ≤ 3), where steady 33 ms frames replace uneven ones; elsewhere, the title included (the attract drive shows behind it), there is no game cap. The rules step on the fixed update, so the race is unchanged. The engine sets the cap aside while its menus are open, and the player's Frame rate limit still applies.
 
-**Still scenery (host API 1.51).** The finish line and gate are `movable = false`: they move only when a stage's length changes, and that move is signalled with `matrixWorldNeedsUpdate`. Everything else on the endless road scrolls or is recycled with the player and stays movable. The sky's cloud drift keeps its time uniform because it holds under Reduced motion and resets on a still sky.
+**Still scenery (host API 1.53).** The finish line and gate are `movable = false`: they move only when a stage's length changes, and that move is signalled with `matrixWorldNeedsUpdate`. Everything else on the endless road scrolls or is recycled with the player and stays movable. The sky's cloud drift keeps its time uniform because it holds under Reduced motion and resets on a still sky.
 
 Higher graphics tiers use native per-object motion blur for moving pieces and effects. Camera motion stays sharp, lower tiers omit the effect, and the runtime's Motion blur and Reduce motion preferences remain authoritative.
+
+On engine 1.53.0, browser play through WebGL 2 compiles a frame's shader programs together and holds that frame until they are linked, blends skinned meshes in one pass, reuses the window pass's depth, and uses a hardware WebGL 2 context when WebGPU's adapter is software.
